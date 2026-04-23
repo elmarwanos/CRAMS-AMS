@@ -11,7 +11,47 @@
 //      - META_PAGE_ACCESS_TOKEN -> The never-expiring Page Access Token for Polaris
 //
 //  Collections:
-//      - PolarisLeads
+//                            ┌──────────────┐
+//                            | PolarisLeads |
+//  ┌───────────────────┬─────┴───┬──────────┴─────────────────────────────-────────────────┐
+//  │ Field Key         │ Type    │ Notes                                                   │
+//  ├───────────────────┼─────────┼─────────────────────────────────────────────────────────┤
+//  │ leadgenId         │ Text    │ PRIMARY — Meta leadgen_id, used for dedup               │
+//  │ strength          │ Text    │ CRM managed — lead quality rating                       │
+//  │ source            │ Text    │ Auto-filled: "Meta Lead Ad"                             │
+//  │ campaign          │ Text    │ Auto-filled from Meta ad_name                           │
+//  │ salesExec         │ Text    │ CRM managed — assigned sales executive                  │
+//  │ received          │ Text    │ Auto-filled: YYYY-MM-DD HH:MM from Meta created_time    │
+//  │ fullName          │ Text    │ REQUIRED — from Meta form full_name / name              │
+//  │ phone             │ Text    │ REQUIRED — from Meta form phone_number / phone          │
+//  │ email             │ Text    │ REQUIRED — from Meta form email                         │
+//  │ preferredChannel  │ Text    │ From Meta form preferred_channel if available           │
+//  │ preferredTime     │ Text    │ From Meta form preferred_time if available              │
+//  │ branch            │ Text    │ From Meta form branch if available                      │
+//  │ model             │ Text    │ From Meta form vehicle_model / model                    │
+//  │ modelDetails      │ Text    │ From Meta form model_details if available               │
+//  │ remarks           │ Text    │ CRM managed                                             │
+//  │ followUp1         │ Text    │ CRM managed — date/note of first follow up              │
+//  │ reply1            │ Text    │ CRM managed — lead reply to follow up 1                 │
+//  │ followUp2         │ Text    │ CRM managed                                             │
+//  │ reply2            │ Text    │ CRM managed                                             │
+//  │ followUp3         │ Text    │ CRM managed                                             │
+//  │ reply3            │ Text    │ CRM managed                                             │
+//  │ status            │ Text    │ New | Contacted | Qualified | Lost                      │
+//  │ quotationIssued   │ Text    │ CRM managed — Yes / No / date issued                    │
+//  │ lostSaleReason    │ Text    │ CRM managed                                             │
+//  │ lostSaleRemarks   │ Text    │ CRM managed                                             │
+//  │ notes             │ Text    │ CRM managed — long text, free notes                     │
+//  │ month             │ Text    │ CRM managed — e.g. "April 2025"                         │
+//  │ day               │ Text    │ CRM managed                                             │
+//  │ qty               │ Number  │ CRM managed — units sold                                │
+//  │ amtWithVat        │ Number  │ CRM managed — sale amount including VAT                 │
+//  │ amtWithoutVat     │ Number  │ CRM managed — sale amount excluding VAT                 │
+//  ├───────────────────┼─────────┼─────────────────────────────────────────────────────────┤
+//  │ pageId            │ Text    │ Internal — Meta page_id                                 │
+//  │ formId            │ Text    │ Internal — Meta form_id                                 │
+//  │ adId              │ Text    │ Internal — Meta ad_id                                   │
+//  └───────────────────┴─────────┴─────────────────────────────────────────────────────────┘
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getSecret } from 'wix-secrets-backend';
@@ -119,7 +159,7 @@ export async function post_metaWebhook(request) {
                                 console.error(`GET fetchLeadFromMeta: Failed to fetch lead data - leadgen_id: ${leadgen_id}`);
                                 continue;
                             }
-                            console.log(`GET fetchLeadFromMeta: successfully fetched lead data ${leadData}`);
+                            console.log(`GET fetchLeadFromMeta: successfully fetched lead data ${JSON.stringify(leadData, null, 2)}`);
 
                             // 2. Check for duplicate (Meta occasionally sends the same event twice)
                             const isDuplicate = await checkDuplicate(leadgen_id);
@@ -132,27 +172,73 @@ export async function post_metaWebhook(request) {
                             const parsedFields = parseFieldData(leadData.field_data || []);
 
                             // 4. Build the CMS record
-                            const now = new Date();
-                            const metaCreatedDate = created_time ? new Date(created_time * 1000) : now;
+                            // const now = new Date();
+                            // const metaCreatedDate = created_time ? new Date(created_time * 1000) : now;
+                            // const leadRecord = {
+                            //     //  Meta stuff  ──────────────────────────
+                            //     leadgenId: leadgen_id,
+                            //     pageId: page_id || '',
+                            //     formId: form_id || '',
+                            //     adId: ad_id || '',
+                            //     //  Everything else ────────────────────────────────
+                            //     created: metaCreatedDate.toISOString().slice(0, 10),
+                            //     createdTime: metaCreatedDate.toISOString().slice(11, 16),
+                            //     source: 'Meta Lead Ad', // Meta doesn't distinguish FB vs IG in webhook. ad_name sometimes contains platform info.
+                            //     fullName: parsedFields['full_name'] || parsedFields['name'] || '',
+                            //     email: parsedFields['email'] || '',
+                            //     phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
+                            //     vehicleModel: parsedFields['vehicle_model'] || parsedFields['vehicle'] || '',
+                            //     adName: leadData.ad_name || '',
+                            //     //  CRM Stuff ──────────────────────────
+                            //     status: 'New',       // New | Contacted | Qualified | Lost
+                            //     assignedTo: '',
+                            //     notes: '',
+                            // };
+                            const metaDate = created_time ? new Date(created_time * 1000) : new Date();
+                            const receivedStr = metaDate.toISOString().slice(0, 10) + ' ' + metaDate.toISOString().slice(11, 16);
+
                             const leadRecord = {
-                                //  Meta stuff  ──────────────────────────
+                                // Primary / Meta identifiers ────────────────
                                 leadgenId: leadgen_id,
                                 pageId: page_id || '',
                                 formId: form_id || '',
                                 adId: ad_id || '',
-                                //  Everything else ────────────────────────────────
-                                created: metaCreatedDate.toISOString().slice(0, 10),
-                                createdTime: metaCreatedDate.toISOString().slice(11, 16),
-                                source: 'Meta Lead Ad', // Meta doesn't distinguish FB vs IG in webhook. ad_name sometimes contains platform info.
+
+                                // Auto-filled from Meta ─────────────────────
+                                source: 'Meta Lead Ad',
+                                campaign: leadData.ad_name || parsedFields['campaign'] || '',
+                                received: receivedStr,
+
+                                // From Meta form (required) ─────────────────
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
-                                email: parsedFields['email'] || '',
                                 phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
-                                vehicleModel: parsedFields['vehicle_model'] || parsedFields['vehicle'] || '',
-                                adName: leadData.ad_name || '',
-                                //  CRM Stuff ──────────────────────────
-                                status: 'New',       // New | Contacted | Qualified | Lost
-                                assignedTo: '',
-                                notes: '',
+                                email: parsedFields['email'] || '',
+
+                                // From Meta form (optional) ─────────────────
+                                strength: parsedFields['strength'] || '',
+                                salesExec: parsedFields['sales_exec'] || parsedFields['sales_executive'] || '',
+                                preferredChannel: parsedFields['preferred_channel'] || parsedFields['contact_method'] || '',
+                                preferredTime: parsedFields['preferred_time'] || parsedFields['best_time'] || '',
+                                branch: parsedFields['branch'] || parsedFields['dealer_location'] || '',
+                                model: parsedFields['vehicle_model'] || parsedFields['model'] || '',
+                                modelDetails: parsedFields['model_details'] || parsedFields['variant'] || '',
+                                remarks: parsedFields['remarks'] || parsedFields['comment'] || '',
+                                followUp1: parsedFields['follow_up_1'] || parsedFields['follow_up'] || '',
+                                reply1: parsedFields['reply_1'] || parsedFields['reply'] || '',
+                                followUp2: parsedFields['follow_up_2'] || '',
+                                reply2: parsedFields['reply_2'] || '',
+                                followUp3: parsedFields['follow_up_3'] || '',
+                                reply3: parsedFields['reply_3'] || '',
+                                status: parsedFields['status'] || 'New',
+                                quotationIssued: parsedFields['quotation_issued'] || '',
+                                lostSaleReason: parsedFields['lost_sale_reason'] || '',
+                                lostSaleRemarks: parsedFields['lost_sale_remarks'] || '',
+                                notes: parsedFields['notes'] || parsedFields['additional_info'] || '',
+                                month: parsedFields['month'] || '',
+                                day: parsedFields['day'] || '',
+                                qty: parsedFields['qty'] || 0,
+                                amtWithVat: parsedFields['amt_with_vat'] || 0,
+                                amtWithoutVat: parsedFields['amt_without_vat'] || 0,
                             };
 
                             // 5. Insert into Wix CMS
@@ -252,28 +338,9 @@ async function checkDuplicate(leadgenId) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  insertLead
-//  Inserts a parsed lead record into the "PolarisLeads" Wix CMS collection.
 //
-//  Required CMS collection fields (create these in Wix Content Manager):
-//  ┌─────────────────┬─────────┬────────────────────────────────────────────┐
-//  │ Field Key       │ Type    │ Notes                                      │
-//  ├─────────────────┼─────────┼────────────────────────────────────────────┤
-//  │ leadgenId       │ Text    │ Meta leadgen_id — used for dedup           │
-//  │ pageId          │ Text    │ Meta page_id                               │
-//  │ formId          │ Text    │ Meta form_id                               │
-//  │ adId            │ Text    │ Meta ad_id                                 │
-//  │ adName          │ Text    │ Meta ad_name (campaign name)               │
-//  │ created         │ Text    │ YYYY-MM-DD — used for date filtering       │
-//  │ createdTime     │ Text    │ HH:MM                                      │
-//  │ source          │ Text    │ "Meta Lead Ad"                             │
-//  │ fullName        │ Text    │                                            │
-//  │ email           │ Text    │                                            │
-//  │ phone           │ Text    │                                            │
-//  │ vehicleModel    │ Text    │ Polaris model interested in                │
-//  │ status          │ Text    │ New | Contacted | Qualified | Lost         │
-//  │ assignedTo      │ Text    │ Sales rep name                             │
-//  │ notes           │ Text    │ Long text — free notes                     │
-//  └─────────────────┴─────────┴────────────────────────────────────────────┘
+//  Input: leadRecord -> the object to insert into PolarisLeads collection
+//  Output: the inserted record (using _id) or throws an error
 // ─────────────────────────────────────────────────────────────────────────────
 async function insertLead(leadRecord) {
     try {
