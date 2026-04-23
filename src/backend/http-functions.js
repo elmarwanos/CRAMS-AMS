@@ -1,3 +1,4 @@
+//@ts-nocheck
 // ─────────────────────────────────────────────────────────────────────────────
 //  CRAMS - AMS - http-functions.js
 //      - Built by Marwan Bassam (self-proclaimed genius) for Polaris UAE 2026 
@@ -21,7 +22,7 @@
 //  │ source            │ Text    │ Auto-filled: "Meta Lead Ad"                             │
 //  │ campaign          │ Text    │ Auto-filled from Meta ad_name                           │
 //  │ salesExec         │ Text    │ CRM managed — assigned sales executive                  │
-//  │ received          │ Text    │ Auto-filled: YYYY-MM-DD HH:MM from Meta created_time    │
+//  │ created           │ Text    │ Auto-filled: YYYY-MM-DD HH:MM from Meta created_time    │
 //  │ fullName          │ Text    │ REQUIRED — from Meta form full_name / name              │
 //  │ phone             │ Text    │ REQUIRED — from Meta form phone_number / phone          │
 //  │ email             │ Text    │ REQUIRED — from Meta form email                         │
@@ -172,30 +173,8 @@ export async function post_metaWebhook(request) {
                             const parsedFields = parseFieldData(leadData.field_data || []);
 
                             // 4. Build the CMS record
-                            // const now = new Date();
-                            // const metaCreatedDate = created_time ? new Date(created_time * 1000) : now;
-                            // const leadRecord = {
-                            //     //  Meta stuff  ──────────────────────────
-                            //     leadgenId: leadgen_id,
-                            //     pageId: page_id || '',
-                            //     formId: form_id || '',
-                            //     adId: ad_id || '',
-                            //     //  Everything else ────────────────────────────────
-                            //     created: metaCreatedDate.toISOString().slice(0, 10),
-                            //     createdTime: metaCreatedDate.toISOString().slice(11, 16),
-                            //     source: 'Meta Lead Ad', // Meta doesn't distinguish FB vs IG in webhook. ad_name sometimes contains platform info.
-                            //     fullName: parsedFields['full_name'] || parsedFields['name'] || '',
-                            //     email: parsedFields['email'] || '',
-                            //     phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
-                            //     vehicleModel: parsedFields['vehicle_model'] || parsedFields['vehicle'] || '',
-                            //     adName: leadData.ad_name || '',
-                            //     //  CRM Stuff ──────────────────────────
-                            //     status: 'New',       // New | Contacted | Qualified | Lost
-                            //     assignedTo: '',
-                            //     notes: '',
-                            // };
                             const metaDate = created_time ? new Date(created_time * 1000) : new Date();
-                            const receivedStr = metaDate.toISOString().slice(0, 10) + ' ' + metaDate.toISOString().slice(11, 16);
+                            const createdStr = metaDate.toISOString().slice(0, 10) + ' ' + metaDate.toISOString().slice(11, 16);
 
                             const leadRecord = {
                                 // Primary / Meta identifiers ────────────────
@@ -204,12 +183,10 @@ export async function post_metaWebhook(request) {
                                 formId: form_id || '',
                                 adId: ad_id || '',
 
-                                // Auto-filled from Meta ─────────────────────
-                                source: 'Meta Lead Ad',
-                                campaign: leadData.ad_name || parsedFields['campaign'] || '',
-                                received: receivedStr,
-
                                 // From Meta form (required) ─────────────────
+                                source:   await detectSource(ad_id, pageToken),
+                                campaign: await detectCampaign(form_id, leadData, pageToken),
+                                created: createdStr,
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
                                 phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
                                 email: parsedFields['email'] || '',
@@ -318,6 +295,65 @@ function parseFieldData(fieldDataArray) {
     return result;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  detectSource
+//  Fetches the ad's publisher_platform to determine Instagram vs Facebook.
+//  Returns "Instagram" | "Facebook" | "Meta Lead Ad" (fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+async function detectSource(adId, pageToken) {
+    if (!adId) return 'Meta Lead Ad';
+ 
+    try {
+        const url  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${adId}?fields=adset_id&access_token=${pageToken}`;
+        const res  = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+ 
+        if (data.error || !data.adset_id) return 'Meta Lead Ad';
+ 
+        // Fetch publisher platforms from the adset
+        const adsetUrl  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${data.adset_id}?fields=targeting&access_token=${pageToken}`;
+        const adsetRes  = await fetch(adsetUrl, { method: 'GET' });
+        const adsetData = await adsetRes.json();
+ 
+        if (adsetData.error) return 'Meta Lead Ad';
+ 
+        const platforms = adsetData?.targeting?.publisher_platforms || [];
+ 
+        if (platforms.includes('instagram') && !platforms.includes('facebook')) return 'Instagram';
+        if (platforms.includes('facebook')  && !platforms.includes('instagram')) return 'Facebook';
+        if (platforms.includes('instagram') && platforms.includes('facebook'))   return 'Instagram & Facebook';
+ 
+        return 'Meta Lead Ad';
+    } catch (err) {
+        console.error('detectSource error:', err);
+        return 'Meta Lead Ad';
+    }
+}
+ 
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+//  detectCampaign
+//  Uses the Lead Form name as the campaign value — it's the most human-readable
+//  identifier AMS will have set when building the form in Ads Manager.
+//  Falls back to ad_name if form name unavailable.
+// ─────────────────────────────────────────────────────────────────────────────
+async function detectCampaign(formId, leadData, pageToken) {
+    if (!formId) return leadData.ad_name || '';
+ 
+    try {
+        const url  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${formId}?fields=name&access_token=${pageToken}`;
+        const res  = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+ 
+        if (data.error || !data.name) return leadData.ad_name || '';
+ 
+        return data.name;
+    } catch (err) {
+        console.error('detectCampaign error:', err);
+        return leadData.ad_name || '';
+    }
+}
+ 
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  checkDuplicate
