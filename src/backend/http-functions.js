@@ -43,19 +43,19 @@ export async function get_metaWebhook(request) {
 
         if (mode === 'subscribe' && receivedToken === verifyToken) {
             options.body = challenge;
-            console.log('Meta webhook verified successfully.');
+            console.log('GET Meta Webhook: verified successfully.');
             return ok({
                 headers: { 'Content-Type': 'text/plain' },
                 body: challenge
             });
         } else {
-            console.error('Meta webhook verification failed. Token mismatch.');
+            console.error('GET Meta Webhook: verification failed. Token mismatch.');
             options.body = 'Verification failed';
             return serverError(options);
         }
 
     } catch (err) {
-        console.error('Error during webhook verification:', err);
+        console.error('GET Meta Webhook: Error during verification:', err);
         options.body = 'Internal error during verification';
         return serverError(options);
     }
@@ -89,8 +89,6 @@ export async function get_metaWebhook(request) {
 //  }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function post_metaWebhook(request) {
-    console.log('POST metaWebhook triggered');
-
     const options = {
         headers: { 'Content-Type': 'application/json' },
         body: ''
@@ -98,8 +96,6 @@ export async function post_metaWebhook(request) {
 
     try {
         const body = await request.body.json();
-        console.log('Meta webhook received:', JSON.stringify(body, null, 2));
-
         if (body.object === 'page' && body.entry) {
             // Use setTimeout to return 200 immediately while async code continues
             setTimeout(async () => {
@@ -115,19 +111,20 @@ export async function post_metaWebhook(request) {
                             }
 
                             const { leadgen_id, page_id, form_id, ad_id, created_time } = change.value;
-                            console.log(`New lead received — leadgen_id: ${leadgen_id}`);
+                            console.log(`POST Meta Webhook: received leadgen_id: ${leadgen_id}`);
 
                             // 1. Fetch full lead details from Meta Graph API
                             const leadData = await fetchLeadFromMeta(leadgen_id, pageToken);
                             if (!leadData) {
-                                console.error(`Failed to fetch lead data for leadgen_id: ${leadgen_id}`);
+                                console.error(`GET fetchLeadFromMeta: Failed to fetch lead data - leadgen_id: ${leadgen_id}`);
                                 continue;
                             }
+                            console.log(`GET fetchLeadFromMeta: successfully fetched lead data ${leadData}`);
 
                             // 2. Check for duplicate (Meta occasionally sends the same event twice)
                             const isDuplicate = await checkDuplicate(leadgen_id);
                             if (isDuplicate) {
-                                console.warn(`Duplicate lead ignored — leadgen_id: ${leadgen_id}`);
+                                console.warn(`Duplicate lead detected & ignored — leadgen_id: ${leadgen_id}`);
                                 continue;
                             }
 
@@ -136,10 +133,7 @@ export async function post_metaWebhook(request) {
 
                             // 4. Build the CMS record
                             const now = new Date();
-                            const metaCreatedDate = created_time
-                                ? new Date(created_time * 1000)
-                                : now;
-
+                            const metaCreatedDate = created_time ? new Date(created_time * 1000) : now;
                             const leadRecord = {
                                 //  Meta stuff  ──────────────────────────
                                 leadgenId: leadgen_id,
@@ -163,7 +157,6 @@ export async function post_metaWebhook(request) {
 
                             // 5. Insert into Wix CMS
                             await insertLead(leadRecord);
-                            console.log(`Lead inserted successfully — leadgen_id: ${leadgen_id}`);
                         }
                     }
                 } catch (asyncErr) {
@@ -177,7 +170,7 @@ export async function post_metaWebhook(request) {
         return ok(options);
 
     } catch (err) {
-        console.error('Error in post_metaWebhook:', err);
+        console.error('POST metaWebhook:', err);
         options.body = JSON.stringify({ error: 'Webhook processing failed' });
         return serverError(options);
     }
@@ -212,13 +205,13 @@ async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
         const data = await res.json();
 
         if (data.error) {
-            console.error('Meta Graph API error:', data.error.message);
+            console.error('POST fetchLeadFromMeta: Meta Graph API error:', data.error.message);
             return null;
         }
 
         return data;
     } catch (err) {
-        console.error('Network error fetching lead from Meta:', err);
+        console.error('POST fetchLeadFromMeta: Network error fetching lead from Meta:', err);
         return null;
     }
 }
@@ -231,6 +224,7 @@ async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
 //  Output: { full_name: "John Doe", ... }
 // ─────────────────────────────────────────────────────────────────────────────
 function parseFieldData(fieldDataArray) {
+    console.log('!!!!!!!!!Parsing field_data array from Meta:', fieldDataArray);
     const result = {};
     for (const field of fieldDataArray) {
         result[field.name] = field.values && field.values.length > 0 ? field.values[0] : '';
@@ -284,10 +278,10 @@ async function checkDuplicate(leadgenId) {
 async function insertLead(leadRecord) {
     try {
         const inserted = await wixData.insert('PolarisLeads', leadRecord, { suppressAuth: true });
-        console.log('Lead inserted into PolarisLeads:', inserted._id);
+        console.log('Lead inserted into PolarisLeads CMS:', inserted._id);
         return inserted;
     } catch (err) {
-        console.error('Failed to insert lead into PolarisLeads:', err);
+        console.error('Failed to insert lead into PolarisLeads CMS:', err);
         throw err;
     }
 }
