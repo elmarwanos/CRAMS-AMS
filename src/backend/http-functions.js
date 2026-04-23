@@ -293,6 +293,8 @@
 
 import { ok, serverError } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
+import { fetch } from 'wix-fetch';
+import wixData from 'wix-data';
 
 export async function get_metaWebhook(request) {
     const challenge = request.query['hub.challenge'] || 'alive';
@@ -320,5 +322,126 @@ export async function get_metaWebhook(request) {
             headers: { 'Content-Type': 'text/plain' },
             body: 'Internal error'
         });
+    }
+}
+
+const META_GRAPH_VERSION = 'v19.0';
+
+export async function post_metaWebhook(request) {
+    try {
+        const body = await request.body.json();
+        console.log('Meta webhook POST received:', JSON.stringify(body));
+
+        if (body.object === 'page' && body.entry) {
+            setTimeout(async () => {
+                try {
+                    const pageToken = await getSecret('META_PAGE_ACCESS_TOKEN');
+
+                    for (const entry of body.entry) {
+                        if (!entry.changes) continue;
+                        for (const change of entry.changes) {
+                            if (change.field !== 'leadgen') continue;
+
+                            const { leadgen_id, page_id, form_id, ad_id, created_time } = change.value;
+                            console.log(`New lead — leadgen_id: ${leadgen_id}`);
+
+                            const leadData = await fetchLeadFromMeta(leadgen_id, pageToken);
+                            if (!leadData) continue;
+
+                            const isDuplicate = await checkDuplicate(leadgen_id);
+                            if (isDuplicate) {
+                                console.warn(`Duplicate skipped — leadgen_id: ${leadgen_id}`);
+                                continue;
+                            }
+
+                            const parsedFields = parseFieldData(leadData.field_data || []);
+                            const metaDate = created_time ? new Date(created_time * 1000) : new Date();
+
+                            const leadRecord = {
+                                leadgenId:    leadgen_id,
+                                pageId:       page_id   || '',
+                                formId:       form_id   || '',
+                                adId:         ad_id     || '',
+                                adName:       leadData.ad_name || '',
+                                created:      metaDate.toISOString().slice(0, 10),
+                                createdTime:  metaDate.toISOString().slice(11, 16),
+                                source:       'Meta Lead Ad',
+                                fullName:     parsedFields['full_name']    || parsedFields['name']         || '',
+                                email:        parsedFields['email']        || '',
+                                phone:        parsedFields['phone_number'] || parsedFields['phone']        || '',
+                                vehicleModel: parsedFields['vehicle_model']|| parsedFields['vehicle']      || '',
+                                status:       'New',
+                                assignedTo:   '',
+                                notes:        '',
+                            };
+
+                            await insertLead(leadRecord);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Async lead processing error:', err);
+                }
+            }, 0);
+        }
+
+        return ok({
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'OK' })
+        });
+
+    } catch (err) {
+        console.error('POST webhook error:', err);
+        return serverError({
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'Webhook processing failed' })
+        });
+    }
+}
+
+async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
+    const fields = 'id,created_time,ad_id,ad_name,form_id,field_data';
+    const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${leadgenId}?fields=${fields}&access_token=${pageAccessToken}`;
+    try {
+        const res  = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+        if (data.error) {
+            console.error('Meta Graph API error:', data.error.message);
+            return null;
+        }
+        return data;
+    } catch (err) {
+        console.error('Network error fetching lead:', err);
+        return null;
+    }
+}
+
+function parseFieldData(fieldDataArray) {
+    const result = {};
+    for (const field of fieldDataArray) {
+        result[field.name] = field.values?.[0] || '';
+    }
+    return result;
+}
+
+async function checkDuplicate(leadgenId) {
+    try {
+        const result = await wixData.query('PolarisLeads')
+            .eq('leadgenId', leadgenId)
+            .find({ suppressAuth: true });
+        return result.totalCount > 0;
+    } catch (err) {
+        console.error('Duplicate check error:', err);
+        return false;
+    }
+}
+
+async function insertLead(leadRecord) {
+    try {
+        const inserted = await wixData.insert('PolarisLeads', leadRecord, { suppressAuth: true });
+        console.log('Lead inserted:', inserted._id);
+        return inserted;
+    } catch (err) {
+        console.error('Insert failed:', err);
+        throw err;
     }
 }
