@@ -89,6 +89,8 @@ export async function get_metaWebhook(request) {
 //  }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function post_metaWebhook(request) {
+    console.log('POST metaWebhook triggered');
+
     const options = {
         headers: { 'Content-Type': 'application/json' },
         body: ''
