@@ -291,12 +291,34 @@
 // }
 
 
-import { ok } from 'wix-http-functions';
+import { ok, serverError } from 'wix-http-functions';
+import { getSecret } from 'wix-secrets-backend';
 
-export function get_metaWebhook(request) {
+export async function get_metaWebhook(request) {
     const challenge = request.query['hub.challenge'] || 'alive';
-    return ok({
-        headers: { 'Content-Type': 'text/plain' },
-        body: challenge
-    });
+    
+    try {
+        const verifyToken = await getSecret('META_VERIFY_TOKEN');
+        const receivedToken = request.query['hub.verify_token'];
+        const mode = request.query['hub.mode'];
+
+        if (mode === 'subscribe' && receivedToken === verifyToken) {
+            return ok({
+                headers: { 'Content-Type': 'text/plain' },
+                body: challenge
+            });
+        }
+
+        return serverError({
+            headers: { 'Content-Type': 'text/plain' },
+            body: 'Verification failed'
+        });
+
+    } catch (err) {
+        console.error('Verification error:', err);
+        return serverError({
+            headers: { 'Content-Type': 'text/plain' },
+            body: 'Internal error'
+        });
+    }
 }
