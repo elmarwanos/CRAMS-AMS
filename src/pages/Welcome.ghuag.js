@@ -21,6 +21,7 @@
 import { validateLogin } from 'backend/login-verification.web.js';
 import { to } from 'wix-location';
 import { session as storage } from 'wix-storage';
+import { login } from 'wix-users';
 
 $w.onReady(function () {
     const usernameInput = $w("#usernameInput");
@@ -36,6 +37,7 @@ $w.onReady(function () {
         return;
     }
 
+    loginBtn.enable();
     // Allow submitting with Enter key
     passwordInput.onKeyPress((event) => {
         if (event.key === "Enter") handleLogin();
@@ -55,14 +57,14 @@ $w.onReady(function () {
 
         try {
             const res = await validateLogin(
-                usernameInput.value.trim().toLowerCase(),
+                usernameInput.value.trim(),
                 passwordInput.value
             );
 
             if (res.body.success) {
                 // Store session
                 storage.setItem("crams_session_hash",  res.body.sessionHash);
-                storage.setItem("crams_username",      usernameInput.value.trim().toLowerCase());
+                storage.setItem("crams_username",      usernameInput.value.trim());
                 storage.setItem("crams_role",          res.body.role);
                 storage.setItem("crams_display_name",  res.body.displayName);
 
