@@ -44,7 +44,11 @@ export async function get_metaWebhook(request) {
         if (mode === 'subscribe' && receivedToken === verifyToken) {
             options.body = challenge;
             console.log('Meta webhook verified successfully.');
-            return ok(options);
+            return {
+                status: 200,
+                header: {'Content-Type': 'text/plain' },
+                body: challenge
+            }
         } else {    
             console.error('Meta webhook verification failed. Token mismatch.');
             options.body = 'Verification failed';
