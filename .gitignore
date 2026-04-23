@@ -3,4 +3,6 @@ node_modules/
 .vscode/
 .idea/
 .wix/
+.DS_Store
 jsconfig.json
+local_secrets.txt
