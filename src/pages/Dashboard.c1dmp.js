@@ -469,11 +469,10 @@ function setupStatusChart(items) {
         datasets: [{
             data,
             backgroundColor: [
-                'rgba(24, 119, 242, 0.7)',   // New — blue
-                'rgba(34, 197, 94, 0.7)',    // Contacted — green
-                'rgba(231, 61, 0, 0.7)',     // Qualified — red
-                'rgba(0, 0, 0, 0.7)',        // Lost — black
-                'rgba(150, 150, 150, 0.7)', // Other — grey
+                '#52d387',      // New — blue
+                '#916abe',      // Contacted — green
+                '#d6506d',      // Qualified — red
+                '#343434',      // Lost — black
             ],
             borderWidth: 0,
         }]
