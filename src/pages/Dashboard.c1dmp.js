@@ -97,36 +97,65 @@ const FULL_COLUMNS = [
 //  MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 $w.onReady(async function () {
+    console.log('onReady fired');
 
-    // 1. Verify session
     const username    = storage.getItem('crams_username');
     const sessionHash = storage.getItem('crams_session_hash');
-    if (!username || !sessionHash) { to('/'); return; }
+    console.log('username:', username);
+    console.log('sessionHash:', sessionHash ? 'exists' : 'MISSING');
 
-    const auth = await verifyCookie(username, sessionHash);
-    if (auth.status !== 200) { clearSession(); to('/'); return; }
+    if (!username || !sessionHash) {
+        console.log('NO SESSION — would redirect to /');
+        // comment out the redirect temporarily:
+        // to('/'); return;
+    } else {
+        const auth = await verifyCookie(username, sessionHash);
+        console.log('auth status:', auth.status);
+    }
 
-    // 2. Show display name & update date
-    $w('#accountName').text = storage.getItem('crams_display_name') || username;
-    $w('#todaysDate').text = new Date().toLocaleDateString('en-GB', {
-        day:   'numeric',
-        month: 'long',
-        year:  'numeric'
-    });
+    try {
+        const result = await wixData
+            .query('PolarisLeads')
+            .descending('created')
+            .limit(10)
+            .find({ suppressAuth: true });
+        console.log('items found:', result.items.length);
+        console.log('first item:', JSON.stringify(result.items[0]));
+    } catch(err) {
+        console.error('wixData error:', err);
+    }
+});
+// $w.onReady(async function () {
 
-    // 3. Simple view on load (switch unchecked = simple)
-    $w('#table1').columns   = SIMPLE_COLUMNS;
-    $w('#tableViewTxt').text = 'SIMPLE VIEW';
-    $w('#tableViewSwitch').checked = false;
+//     // 1. Verify session
+//     const username    = storage.getItem('crams_username');
+//     const sessionHash = storage.getItem('crams_session_hash');
+//     if (!username || !sessionHash) { to('/'); return; }
 
-    // 4. Sort dropdown default
-    $w('#sortDateDrop').value = 'Descending';
+//     const auth = await verifyCookie(username, sessionHash);
+//     if (auth.status !== 200) { clearSession(); to('/'); return; }
 
-    // 5. Load leads
-    await loadLeads();
+//     // 2. Show display name & update date
+//     $w('#accountName').text = storage.getItem('crams_display_name') || username;
+//     $w('#todaysDate').text = new Date().toLocaleDateString('en-GB', {
+//         day:   'numeric',
+//         month: 'long',
+//         year:  'numeric'
+//     });
 
-    // 6. Disable end date until start chosen
-    $w('#endDatePicker').disable();
+//     // 3. Simple view on load (switch unchecked = simple)
+//     $w('#table1').columns   = SIMPLE_COLUMNS;
+//     $w('#tableViewTxt').text = 'SIMPLE VIEW';
+//     $w('#tableViewSwitch').checked = false;
+
+//     // 4. Sort dropdown default
+//     $w('#sortDateDrop').value = 'Descending';
+
+//     // 5. Load leads
+//     await loadLeads();
+
+//     // 6. Disable end date until start chosen
+//     $w('#endDatePicker').disable();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
