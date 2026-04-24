@@ -3,20 +3,25 @@
 //  CRAMS - AMS - Dashboard Page
 //
 //  Element IDs required on this page:
-//    #accountName        -> Text showing logged-in user's display name
-//    #logoutBtn          -> Logout button
-//    #table1             -> Main leads data table
-//    #viewToggleBtn      -> Button to toggle Simple / Full view  ← ADD THIS
-//    #startDatePicker    -> Start date picker
-//    #endDatePicker      -> End date picker
-//    #allDatesBtn        -> Quick filter: all dates
-//    #lastMonthBtn       -> Quick filter: last month
-//    #last2WeekBtn       -> Quick filter: last 2 weeks
-//    #lastWeekBtn        -> Quick filter: last week
-//    #filterCampaignDrop -> Filter by campaign
-//    #filterShowroomDrop -> Filter by branch
-//    #filterVehicleDrop  -> Filter by model
-//    #filterSourceDrop   -> Filter by source
+//    #accountName        → Text showing logged-in user's display name
+//    #logoutBtn          → Logout button
+//    #table1             → Main leads data table
+//    #tableViewSwitch    → Toggle switch element (Simple / Full view)
+//    #tableViewTxt       → Text element next to switch showing current view label
+//    #generateCSV        → Button to download current filtered data as CSV
+//    #clearFiltersBtn    → Button to reset all filters
+//    #sortDateDrop       → Dropdown: "Ascending" | "Descending"
+//    #startDatePicker    → Start date picker
+//    #endDatePicker      → End date picker
+//    #allDatesBtn        → Quick filter: all dates
+//    #lastMonthBtn       → Quick filter: last month (~30 days)
+//    #last2WeekBtn       → Quick filter: last 2 weeks
+//    #lastWeekBtn        → Quick filter: last week
+//    #filterCampaignDrop → Filter by campaign
+//    #filterShowroomDrop → Filter by branch
+//    #filterVehicleDrop  → Filter by model
+//    #filterSourceDrop   → Filter by source
+//    #htmlDownloader     → HTML iframe element used for CSV download trigger
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { verifyCookie } from 'backend/login-verification.web.js';
@@ -29,8 +34,9 @@ import wixData from 'wix-data';
 // ─────────────────────────────────────────────────────────────────────────────
 const COLLECTION = 'PolarisLeads';
 
-let allItems      = [];
-let isSimpleView  = true;
+let allItems        = [];   // full unfiltered dataset
+let currentFiltered = [];   // currently displayed (filtered + sorted) rows
+let sortAscending   = false;
 
 let filterCampaign  = null;
 let filterBranch    = null;
@@ -95,7 +101,6 @@ $w.onReady(async function () {
     // 1. Verify session
     const username    = storage.getItem('crams_username');
     const sessionHash = storage.getItem('crams_session_hash');
-
     if (!username || !sessionHash) { to('/'); return; }
 
     const auth = await verifyCookie(username, sessionHash);
@@ -104,14 +109,18 @@ $w.onReady(async function () {
     // 2. Show display name
     $w('#accountName').text = storage.getItem('crams_display_name') || username;
 
-    // 3. Set initial simple view
-    $w('#table1').columns     = SIMPLE_COLUMNS;
-    $w('#viewToggleBtn').label = 'Full View';
+    // 3. Simple view on load (switch unchecked = simple)
+    $w('#table1').columns   = SIMPLE_COLUMNS;
+    $w('#tableViewTxt').text = 'SIMPLE VIEW';
+    $w('#tableViewSwitch').checked = false;
 
-    // 4. Load leads
+    // 4. Sort dropdown default
+    $w('#sortDateDrop').value = 'Descending';
+
+    // 5. Load leads
     await loadLeads();
 
-    // 5. Disable end date until start chosen
+    // 6. Disable end date until start chosen
     $w('#endDatePicker').disable();
 });
 
@@ -120,21 +129,17 @@ $w.onReady(async function () {
 // ─────────────────────────────────────────────────────────────────────────────
 async function loadLeads() {
     try {
-        const result = await wixData
-            .query(COLLECTION)
-            .descending('created')
-            .limit(1000)
-            .find({ suppressAuth: true });
-
+        const result = await wixData.query(COLLECTION).descending('created').limit(1000).find({ suppressAuth: true });
         allItems = result.items;
         populateFilterOptions(allItems);
-        renderTable(allItems);
+        applyFilters();
     } catch (err) {
         console.error('Failed to load leads:', err);
     }
 }
 
 function renderTable(items) {
+    currentFiltered = items;
     $w('#table1').rows = items.map(item => ({
         created:          item.created          || '',
         source:           item.source           || '',
@@ -179,17 +184,60 @@ function populateFilterOptions(items) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  VIEW TOGGLE
+// TABLE VIEW SWITCH
 // ─────────────────────────────────────────────────────────────────────────────
-$w('#viewToggleBtn').onClick(() => {
-    isSimpleView = !isSimpleView;
-    $w('#table1').columns     = isSimpleView ? SIMPLE_COLUMNS : FULL_COLUMNS;
-    $w('#viewToggleBtn').label = isSimpleView ? 'Full View' : 'Simple View';
+$w('#tableViewSwitch').onClick(() => {
+    if ($w('#tableViewSwitch').checked) {
+        $w('#table1').columns    = FULL_COLUMNS;
+        $w('#tableViewTxt').text = 'EXPANDED VIEW';
+    } else {
+        $w('#table1').columns    = SIMPLE_COLUMNS;
+        $w('#tableViewTxt').text = 'SIMPLE VIEW';
+    }
+    renderTable(currentFiltered);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CSV DOWNLOAD
+// ─────────────────────────────────────────────────────────────────────────────
+$w('#generateCSV').onClick(() => {
+    const headers = [
+        'created', 'source', 'campaign', 'salesExec',
+        'fullName', 'email', 'phone',
+        'preferredChannel', 'preferredTime',
+        'model', 'modelDetails', 'branch', 'strength',
+        'status', 'quotationIssued',
+        'remarks',
+        'followUp1', 'reply1', 'followUp2', 'reply2', 'followUp3', 'reply3',
+        'lostSaleReason', 'lostSaleRemarks', 'notes',
+        'month', 'day', 'qty', 'amtWithVat', 'amtWithoutVat'
+    ];
+
+    const headerRow = headers.join(',');
+    const dataRows  = currentFiltered.map(item =>
+        headers.map(h => `"${String(item[h] ?? '').replace(/"/g, '""')}"`).join(',')
+    );
+
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
+
+    const now     = new Date();
+    const pad     = (n) => n.toString().padStart(2, '0');
+    const stamp   = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const fileName = `PolarisLeads-${stamp}.csv`;
+
+    $w('#htmlDownloader').postMessage({ csvContent, fileName });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SORT BY CREATED
+// ─────────────────────────────────────────────────────────────────────────────
+$w('#sortDateDrop').onChange(e => {
+    sortAscending = e.target.value === 'Ascending';
     applyFilters();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  FILTERING
+//  FILTERING + SORTING
 // ─────────────────────────────────────────────────────────────────────────────
 function applyFilters() {
     let filtered = allItems;
@@ -206,9 +254,21 @@ function applyFilters() {
         filtered = filtered.filter(i => i.created && i.created <= filterEndDate + ' 23:59');
     }
 
+    // Sort by created string — "YYYY-MM-DD HH:MM" sorts correctly alphabetically
+    filtered = filtered.slice().sort((a, b) => {
+        const valA = a.created || '';
+        const valB = b.created || '';
+        return sortAscending
+            ? valA.localeCompare(valB)
+            : valB.localeCompare(valA);
+    });
+
     renderTable(filtered);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  FILTER EVENT LISTENERS
+// ─────────────────────────────────────────────────────────────────────────────
 $w('#filterCampaignDrop').onChange(e => { filterCampaign = e.target.value || null; applyFilters(); });
 $w('#filterShowroomDrop').onChange(e => { filterBranch   = e.target.value || null; applyFilters(); });
 $w('#filterVehicleDrop').onChange(e  => { filterModel    = e.target.value || null; applyFilters(); });
@@ -243,6 +303,30 @@ $w('#allDatesBtn').onClick(e => {
     $w('#endDatePicker').disable();
     enableAllDateBtns();
     e.target.disable();
+    applyFilters();
+});
+
+$w('#clearFiltersBtn').onClick(() => {
+    // Reset all filter state
+    filterCampaign  = null;
+    filterBranch    = null;
+    filterModel     = null;
+    filterSource    = null;
+    filterStartDate = null;
+    filterEndDate   = null;
+    sortAscending   = false;
+
+    // Reset UI elements
+    $w('#filterCampaignDrop').value  = '';
+    $w('#filterShowroomDrop').value  = '';
+    $w('#filterVehicleDrop').value   = '';
+    $w('#filterSourceDrop').value    = '';
+    $w('#sortDateDrop').value        = 'Descending';
+    $w('#startDatePicker').value     = null;
+    $w('#endDatePicker').value       = null;
+    $w('#endDatePicker').disable();
+
+    enableAllDateBtns();
     applyFilters();
 });
 
