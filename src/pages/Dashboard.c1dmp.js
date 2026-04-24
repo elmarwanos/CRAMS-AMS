@@ -426,15 +426,15 @@ function setupDailySourceChart(items) {
             {
                 label: 'Instagram',
                 data: labels.map(d => dateMap[d].Instagram),
-                backgroundColor: '#22c55eb3',  // Instagram pink
-                borderColor:     '#22c55eb3',
+                backgroundColor: '#A86D7B',  // Instagram pink
+                borderColor:     '#A86D7B',
                 borderWidth: 0,
             },
             {
                 label: 'Facebook',
                 data: labels.map(d => dateMap[d].Facebook),
-                backgroundColor: '#e73d00b3',  // Facebook blue
-                borderColor:     '#e73d00b3',
+                backgroundColor: '#72152A',  // Facebook blue
+                borderColor:     '#72152A',
                 borderWidth: 0,
             },
             {
@@ -503,8 +503,8 @@ function setupModelChart(items) {
             data,
             backgroundColor: labels.map((_, i) =>
                 i % 2 === 0
-                    ? '#e73d00b3'
-                    : '#22c55eb3'
+                    ? '#A86D7B'
+                    : '#72152A'
             ),
             borderWidth: 0,
         }]
