@@ -201,6 +201,7 @@ $w('#tableViewSwitch').onClick(() => {
 //  CSV DOWNLOAD
 // ─────────────────────────────────────────────────────────────────────────────
 $w('#generateCSV').onClick(() => {
+    console.log("clicked download csv");
     const headers = [
         'created', 'source', 'campaign', 'salesExec',
         'fullName', 'email', 'phone',
@@ -217,6 +218,7 @@ $w('#generateCSV').onClick(() => {
     const dataRows  = currentFiltered.map(item =>
         headers.map(h => `"${String(item[h] ?? '').replace(/"/g, '""')}"`).join(',')
     );
+    console.log("mapping data to rows...");
 
     const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
 
@@ -226,6 +228,7 @@ $w('#generateCSV').onClick(() => {
     const fileName = `PolarisLeads-${stamp}.csv`;
 
     $w('#htmlDownloader').postMessage({ csvContent, fileName });
+    console.log("posted message to iframe for download...");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
