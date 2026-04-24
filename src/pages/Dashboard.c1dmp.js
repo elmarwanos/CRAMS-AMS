@@ -106,8 +106,13 @@ $w.onReady(async function () {
     const auth = await verifyCookie(username, sessionHash);
     if (auth.status !== 200) { clearSession(); to('/'); return; }
 
-    // 2. Show display name
+    // 2. Show display name & update date
     $w('#accountName').text = storage.getItem('crams_display_name') || username;
+    $w('#todaysDate').text = new Date().toLocaleDateString('en-GB', {
+        day:   'numeric',
+        month: 'long',
+        year:  'numeric'
+    });
 
     // 3. Simple view on load (switch unchecked = simple)
     $w('#table1').columns   = SIMPLE_COLUMNS;
