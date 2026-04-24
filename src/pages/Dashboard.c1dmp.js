@@ -206,34 +206,18 @@ $w('#tableViewSwitch').onClick(() => {
 //  CSV DOWNLOAD
 // ─────────────────────────────────────────────────────────────────────────────
 $w('#generateCSV').onClick(() => {
-    console.log("clicked download csv");
-    const headers = [
-        'created', 'source', 'campaign', 'salesExec',
-        'fullName', 'email', 'phone',
-        'preferredChannel', 'preferredTime',
-        'model', 'modelDetails', 'branch', 'strength',
-        'status', 'quotationIssued',
-        'remarks',
-        'followUp1', 'reply1', 'followUp2', 'reply2', 'followUp3', 'reply3',
-        'lostSaleReason', 'lostSaleRemarks', 'notes',
-        'month', 'day', 'qty', 'amtWithVat', 'amtWithoutVat'
-    ];
+    let csvContent = '\uFEFFcreated,source,campaign,salesExec,fullName,email,phone,preferredChannel,preferredTime,model,modelDetails,branch,strength,status,quotationIssued,remarks,followUp1,reply1,followUp2,reply2,followUp3,reply3,lostSaleReason,lostSaleRemarks,notes,month,day,qty,amtWithVat,amtWithoutVat\n';
 
-    const headerRow = headers.join(',');
-    const dataRows  = currentFiltered.map(item =>
-        headers.map(h => `"${String(item[h] ?? '').replace(/"/g, '""')}"`).join(',')
-    );
-    console.log("mapping data to rows...");
+    currentFiltered.forEach(item => {
+        let row = `"${item.created || ''}","${item.source || ''}","${item.campaign || ''}","${item.salesExec || ''}","${item.fullName || ''}","${item.email || ''}","${item.phone || ''}","${item.preferredChannel || ''}","${item.preferredTime || ''}","${item.model || ''}","${item.modelDetails || ''}","${item.branch || ''}","${item.strength || ''}","${item.status || ''}","${item.quotationIssued || ''}","${item.remarks || ''}","${item.followUp1 || ''}","${item.reply1 || ''}","${item.followUp2 || ''}","${item.reply2 || ''}","${item.followUp3 || ''}","${item.reply3 || ''}","${item.lostSaleReason || ''}","${item.lostSaleRemarks || ''}","${item.notes || ''}","${item.month || ''}","${item.day || ''}","${item.qty || ''}","${item.amtWithVat || ''}","${item.amtWithoutVat || ''}"\n`;
+        csvContent += row;
+    });
 
-    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
-
-    const now     = new Date();
-    const pad     = (n) => n.toString().padStart(2, '0');
-    const stamp   = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-    const fileName = `PolarisLeads-${stamp}.csv`;
+    const now      = new Date();
+    const pad      = (n) => n.toString().padStart(2, '0');
+    const fileName = `PolarisLeads-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
 
     $w('#htmlDownloader').postMessage({ csvContent, fileName });
-    console.log("posted message to iframe for download...");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
