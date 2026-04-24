@@ -156,7 +156,7 @@ $w.onReady(async function () {
 
 //     // 6. Disable end date until start chosen
 //     $w('#endDatePicker').disable();
-});
+// });
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LOAD & RENDER
