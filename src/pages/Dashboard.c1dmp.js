@@ -426,8 +426,8 @@ function setupDailySourceChart(items) {
             {
                 label: 'Instagram',
                 data: labels.map(d => dateMap[d].Instagram),
-                backgroundColor: '#A86D7B',  // Instagram pink
-                borderColor:     '#A86D7B',
+                backgroundColor: '#C28B98',  // Instagram pink
+                borderColor:     '#C28B98',
                 borderWidth: 0,
             },
             {
@@ -503,7 +503,7 @@ function setupModelChart(items) {
             data,
             backgroundColor: labels.map((_, i) =>
                 i % 2 === 0
-                    ? '#A86D7B'
+                    ? '#C28B98'
                     : '#72152A'
             ),
             borderWidth: 0,
