@@ -438,13 +438,6 @@ function setupDailySourceChart(items) {
                 borderWidth: 0,
             },
             {
-                label: 'IG & FB',
-                data: labels.map(d => dateMap[d]['IG & FB']),
-                backgroundColor: 'rgba(100, 80, 180, 0.7)',
-                borderColor:     'rgba(100, 80, 180, 0.7)',
-                borderWidth: 0,
-            },
-            {
                 label: 'Other',
                 data: labels.map(d => dateMap[d].Other),
                 backgroundColor: 'rgba(0, 0, 0, 0.3)',
