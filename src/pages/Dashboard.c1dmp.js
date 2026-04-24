@@ -426,15 +426,15 @@ function setupDailySourceChart(items) {
             {
                 label: 'Instagram',
                 data: labels.map(d => dateMap[d].Instagram),
-                backgroundColor: 'rgba(193, 53, 132, 0.7)',  // Instagram pink
-                borderColor:     'rgba(193, 53, 132, 0.7)',
+                backgroundColor: '#FFEECF',  // Instagram pink
+                borderColor:     '#FFEECF',
                 borderWidth: 0,
             },
             {
                 label: 'Facebook',
                 data: labels.map(d => dateMap[d].Facebook),
-                backgroundColor: 'rgba(24, 119, 242, 0.7)',  // Facebook blue
-                borderColor:     'rgba(24, 119, 242, 0.7)',
+                backgroundColor: '#004E97',  // Facebook blue
+                borderColor:     '#004E97',
                 borderWidth: 0,
             },
             {
@@ -470,10 +470,10 @@ function setupStatusChart(items) {
         datasets: [{
             data,
             backgroundColor: [
-                'rgba(0, 0, 0, 0.7)',        // New — black
+                'rgba(34, 197, 94, 0.7)',    // New — green
                 'rgba(24, 119, 242, 0.7)',   // Contacted — blue
-                'rgba(34, 197, 94, 0.7)',    // Qualified — green
-                'rgba(231, 61, 0, 0.7)',     // Lost — red
+                'rgba(231, 61, 0, 0.7)',     // Qualified — red
+                'rgba(0, 0, 0, 0.7)',        // Lost — black
                 'rgba(150, 150, 150, 0.7)', // Other — grey
             ],
             borderWidth: 0,
@@ -505,8 +505,8 @@ function setupModelChart(items) {
             data,
             backgroundColor: labels.map((_, i) =>
                 i % 2 === 0
-                    ? 'rgba(0, 0, 0, 0.7)'
-                    : 'rgba(231, 61, 0, 0.7)'
+                    ? '#FFEECF'
+                    : '#004E97'
             ),
             borderWidth: 0,
         }]
