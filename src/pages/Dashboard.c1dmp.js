@@ -256,6 +256,8 @@ function applyFilters() {
     });
 
     renderTable(filtered);
+    setupCharts(filtered);
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -363,4 +365,160 @@ function setQuickDateFilter(start, end, clickedBtn) {
 function enableAllDateBtns() {
     [$w('#lastWeekBtn'), $w('#last2WeekBtn'), $w('#lastMonthBtn'), $w('#allDatesBtn')]
         .forEach(btn => btn.enable());
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ────           ─────  ────────────  ─────                ────                ───────                ───────           ──────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ────────────  ─────────────────
+// ──  ────────────────                ─────                ────                ──────────────  ────────────  ─────────────────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ───────  ───────────────────  ─────────────             ─────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ────────  ──────────────────  ─────────────────────────  ────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────  ─────────────────  ─────────────────────────  ────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ──────────  ────────────────  ─────────────────────────  ────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ───────────  ───────────────  ─────────────────────────  ────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ────────────  ──────────────  ─────────────────────────  ────
+// ──  ────────────────  ────────────  ─────  ────────────  ────  ─────────────  ─────────────  ─────────────────────────  ────
+// ────           ─────  ────────────  ─────  ────────────  ────  ──────────────  ────────────  ──────────────           ──────
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+function setupCharts(items) {
+    setupDailySourceChart(items);
+    setupStatusChart(items);
+    setupModelChart(items);
+}
+ 
+ 
+// ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
+function setupDailySourceChart(items) {
+    // Bucket each item into a date key and source bucket
+    const dateMap = {};  // { 'Apr 23': { Instagram: 0, Facebook: 0, 'IG & FB': 0, Other: 0 } }
+ 
+    items.forEach(item => {
+        if (!item.created) return;
+        const dateKey = new Date(item.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+ 
+        if (!dateMap[dateKey]) {
+            dateMap[dateKey] = { Instagram: 0, Facebook: 0, 'IG & FB': 0, Other: 0 };
+        }
+ 
+        const src = (item.source || '').toLowerCase();
+        if (src === 'instagram')               dateMap[dateKey]['Instagram']++;
+        else if (src === 'facebook')           dateMap[dateKey]['Facebook']++;
+        else if (src.includes('instagram') && src.includes('facebook')) dateMap[dateKey]['IG & FB']++;
+        else                                   dateMap[dateKey]['Other']++;
+    });
+ 
+    const labels = Object.keys(dateMap).reverse();
+ 
+    const chartData = {
+        labels,
+        datasets: [
+            {
+                label: 'Instagram',
+                data: labels.map(d => dateMap[d].Instagram),
+                backgroundColor: 'rgba(193, 53, 132, 0.7)',  // Instagram pink
+                borderColor:     'rgba(193, 53, 132, 0.7)',
+                borderWidth: 0,
+            },
+            {
+                label: 'Facebook',
+                data: labels.map(d => dateMap[d].Facebook),
+                backgroundColor: 'rgba(24, 119, 242, 0.7)',  // Facebook blue
+                borderColor:     'rgba(24, 119, 242, 0.7)',
+                borderWidth: 0,
+            },
+            {
+                label: 'IG & FB',
+                data: labels.map(d => dateMap[d]['IG & FB']),
+                backgroundColor: 'rgba(100, 80, 180, 0.7)',
+                borderColor:     'rgba(100, 80, 180, 0.7)',
+                borderWidth: 0,
+            },
+            {
+                label: 'Other',
+                data: labels.map(d => dateMap[d].Other),
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderColor:     'rgba(0, 0, 0, 0.3)',
+                borderWidth: 0,
+            },
+        ]
+    };
+ 
+    // @ts-ignore
+    $w('#dailySourceChart').setAttribute('data-chart', JSON.stringify(chartData));
+}
+ 
+ 
+// ─── CHART 2: Leads by Status ────────────────────────────────────────────────
+function setupStatusChart(items) {
+    const statuses = ['New', 'Contacted', 'Qualified', 'Lost'];
+    const counts   = statuses.map(s => items.filter(i => (i.status || 'New') === s).length);
+ 
+    // Catch any items with unlisted statuses and add to Other
+    const knownCount = counts.reduce((a, b) => a + b, 0);
+    const otherCount = items.length - knownCount;
+ 
+    const labels = [...statuses];
+    const data   = [...counts];
+    if (otherCount > 0) { labels.push('Other'); data.push(otherCount); }
+ 
+    const chartData = {
+        labels,
+        datasets: [{
+            data,
+            backgroundColor: [
+                'rgba(0, 0, 0, 0.7)',        // New — black
+                'rgba(24, 119, 242, 0.7)',   // Contacted — blue
+                'rgba(34, 197, 94, 0.7)',    // Qualified — green
+                'rgba(231, 61, 0, 0.7)',     // Lost — red
+                'rgba(150, 150, 150, 0.7)', // Other — grey
+            ],
+            borderWidth: 0,
+        }]
+    };
+ 
+    // @ts-ignore
+    $w('#statusChart').setAttribute('data-chart', JSON.stringify(chartData));
+}
+ 
+ 
+// ─── CHART 3: Leads by Model ─────────────────────────────────────────────────
+function setupModelChart(items) {
+    // Count leads per model, sort descending
+    const modelMap = {};
+    items.forEach(item => {
+        const model = item.model || 'Unknown';
+        modelMap[model] = (modelMap[model] || 0) + 1;
+    });
+ 
+    const sorted = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(e => e[0]);
+    const data   = sorted.map(e => e[1]);
+ 
+    const chartData = {
+        labels,
+        datasets: [{
+            label: 'Leads',
+            data,
+            backgroundColor: labels.map((_, i) =>
+                i % 2 === 0
+                    ? 'rgba(0, 0, 0, 0.7)'
+                    : 'rgba(231, 61, 0, 0.7)'
+            ),
+            borderWidth: 0,
+        }]
+    };
+ 
+    // @ts-ignore
+    $w('#modelChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
