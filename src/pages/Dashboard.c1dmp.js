@@ -426,15 +426,15 @@ function setupDailySourceChart(items) {
             {
                 label: 'Instagram',
                 data: labels.map(d => dateMap[d].Instagram),
-                backgroundColor: '#FFEECF',  // Instagram pink
-                borderColor:     '#FFEECF',
+                backgroundColor: '#22c55eb3',  // Instagram pink
+                borderColor:     '#22c55eb3',
                 borderWidth: 0,
             },
             {
                 label: 'Facebook',
                 data: labels.map(d => dateMap[d].Facebook),
-                backgroundColor: '#004E97',  // Facebook blue
-                borderColor:     '#004E97',
+                backgroundColor: '#e73d00b3',  // Facebook blue
+                borderColor:     '#e73d00b3',
                 borderWidth: 0,
             },
             {
@@ -447,7 +447,6 @@ function setupDailySourceChart(items) {
         ]
     };
  
-    // @ts-ignore
     $w('#dailySourceChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
  
@@ -470,8 +469,8 @@ function setupStatusChart(items) {
         datasets: [{
             data,
             backgroundColor: [
-                'rgba(34, 197, 94, 0.7)',    // New — green
-                'rgba(24, 119, 242, 0.7)',   // Contacted — blue
+                'rgba(24, 119, 242, 0.7)',   // New — blue
+                'rgba(34, 197, 94, 0.7)',    // Contacted — green
                 'rgba(231, 61, 0, 0.7)',     // Qualified — red
                 'rgba(0, 0, 0, 0.7)',        // Lost — black
                 'rgba(150, 150, 150, 0.7)', // Other — grey
@@ -480,7 +479,6 @@ function setupStatusChart(items) {
         }]
     };
  
-    // @ts-ignore
     $w('#statusChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
  
@@ -505,13 +503,12 @@ function setupModelChart(items) {
             data,
             backgroundColor: labels.map((_, i) =>
                 i % 2 === 0
-                    ? '#FFEECF'
-                    : '#004E97'
+                    ? '#e73d00b3'
+                    : '#22c55eb3'
             ),
             borderWidth: 0,
         }]
     };
  
-    // @ts-ignore
     $w('#modelChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
