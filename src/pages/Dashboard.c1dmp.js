@@ -404,10 +404,10 @@ function sourceColour(src) {
 }
 
 const STATUS_COLOURS = {
-    'New':       'rgba( 34, 197,  94, 0.80)',
+    'New':       'rgba(159, 66, 122, 0.8)',
     'Contacted': 'rgba(0, 255, 221, 0.8)',
-    'Qualified': 'rgba(242, 255, 0, 0.8)',
-    'Lost':      'rgba(231,  61,   0, 0.80)',
+    'Qualified': 'rgba(112, 241, 177, 0.8)',
+    'Lost':      'rgba(68, 70, 165, 0.8)',
 };
 
 function statusColour(s) {
@@ -421,9 +421,9 @@ const MODEL_PALETTE = [
 ];
  
 const BRANCH_PALETTE = [
-    'rgb(255, 140, 0)',
-    'rgb(132, 255, 0)',
-    'rgb(0, 117, 93)',
+    'rgb(209, 52, 54)',
+    'rgba(72, 152, 222, 0.8)',
+    'rgb(150, 58, 168)',
     'rgb(0, 23, 117)',
     'rgb(117, 0, 27)',
 ];
