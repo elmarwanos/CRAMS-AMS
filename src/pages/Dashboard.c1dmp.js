@@ -135,9 +135,14 @@ $w.onReady(async function () {
 async function loadLeads() {
     try {
         const result = await wixData.query(COLLECTION).descending('created').limit(1000).find({ suppressAuth: true });
+
         allItems = result.items;
         populateFilterOptions(allItems);
-        applyFilters();
+        applyFilters(); // this calls renderTable + setupCharts
+
+        // Safety net: re-render charts after 1.5s in case CE wasn't ready
+        setTimeout(() => setupCharts(currentFiltered), 1500);
+
     } catch (err) {
         console.error('Failed to load leads:', err);
     }
@@ -257,7 +262,6 @@ function applyFilters() {
 
     renderTable(filtered);
     setupCharts(filtered);
-    console.log('chart elements:', $w('#dailySourceChart'), $w('#statusChart'), $w('#modelChart'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -302,27 +302,31 @@ function parseFieldData(fieldDataArray) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function detectSource(adId, pageToken) {
     if (!adId) return 'Meta Lead Ad';
- 
     try {
-        const url  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${adId}?fields=adset_id&access_token=${pageToken}`;
+        const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${adId}?fields=publisher_platform,adset_id&access_token=${pageToken}`;
         const res  = await fetch(url, { method: 'GET' });
         const data = await res.json();
- 
-        if (data.error || !data.adset_id) return 'Meta Lead Ad';
- 
-        // Fetch publisher platforms from the adset
-        const adsetUrl  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${data.adset_id}?fields=targeting&access_token=${pageToken}`;
-        const adsetRes  = await fetch(adsetUrl, { method: 'GET' });
-        const adsetData = await adsetRes.json();
- 
-        if (adsetData.error) return 'Meta Lead Ad';
- 
-        const platforms = adsetData?.targeting?.publisher_platforms || [];
- 
-        if (platforms.includes('instagram') && !platforms.includes('facebook')) return 'Instagram';
-        if (platforms.includes('facebook')  && !platforms.includes('instagram')) return 'Facebook';
-        if (platforms.includes('instagram') && platforms.includes('facebook'))   return 'Instagram & Facebook';
- 
+        console.log('detectSource raw:', JSON.stringify(data));
+
+        if (data.error) {
+            console.error('detectSource API error:', data.error.message);
+            return 'Meta Lead Ad';
+        }
+
+        // publisher_platform is an array e.g. ["instagram"] or ["facebook"]
+        const platforms = Array.isArray(data.publisher_platform)
+            ? data.publisher_platform.map(p => p.toLowerCase())
+            : [String(data.publisher_platform || '').toLowerCase()];
+
+        console.log('platforms:', platforms);
+
+        const hasIG = platforms.some(p => p.includes('instagram'));
+        const hasFB = platforms.some(p => p.includes('facebook'));
+
+        if (hasIG && hasFB)  return 'Instagram & Facebook';
+        if (hasIG)           return 'Instagram';
+        if (hasFB)           return 'Facebook';
+
         return 'Meta Lead Ad';
     } catch (err) {
         console.error('detectSource error:', err);
@@ -339,14 +343,13 @@ async function detectSource(adId, pageToken) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function detectCampaign(formId, leadData, pageToken) {
     if (!formId) return leadData.ad_name || '';
- 
     try {
         const url  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${formId}?fields=name&access_token=${pageToken}`;
         const res  = await fetch(url, { method: 'GET' });
         const data = await res.json();
- 
+        console.log('detectCampaign raw:', JSON.stringify(data));
+
         if (data.error || !data.name) return leadData.ad_name || '';
- 
         return data.name;
     } catch (err) {
         console.error('detectCampaign error:', err);

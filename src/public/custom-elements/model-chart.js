@@ -21,14 +21,20 @@ class ModelChart extends HTMLElement {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-        if (name === 'data-chart' && newValue) {
-            try {
-                this.renderChart(JSON.parse(newValue));
-            } catch (e) {
-                console.error('model-chart: invalid data', e);
+    if (name === 'data-chart' && newValue) {
+        try {
+            const data = JSON.parse(newValue);
+            if (this._chartReady) {
+                // Scripts already loaded, render immediately
+                this.renderChart(data);
             }
+            // If not ready yet, connectedCallback's loadAll callback will render it
+            // because hasAttribute('data-chart') will be true by then
+        } catch (e) {
+            console.error('model-chart: invalid data', e);
         }
     }
+}
 
     connectedCallback() {
         const loadScript = (src, cb) => {
@@ -41,14 +47,18 @@ class ModelChart extends HTMLElement {
         if (!window.Chart) {
             loadScript('https://cdn.jsdelivr.net/npm/chart.js', () => {
                 loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels', () => {
-                    if (this.hasAttribute('data-chart'))
-                        this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+                    loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', () => {
+                        if (this.hasAttribute('data-chart'))
+                            this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+                    });
                 });
             });
         } else if (!window.ChartDataLabels) {
             loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels', () => {
-                if (this.hasAttribute('data-chart'))
-                    this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+                loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', () => {
+                    if (this.hasAttribute('data-chart'))
+                        this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+                });
             });
         } else {
             if (this.hasAttribute('data-chart'))
