@@ -184,8 +184,8 @@ export async function post_metaWebhook(request) {
                                 adId: ad_id || '',
 
                                 // From Meta form (required) ─────────────────
-                                source:   await detectSource(ad_id, pageToken),
-                                campaign: await detectCampaign(form_id, leadData, pageToken),
+                                source:   detectSource(leadData), 
+                                campaign: detectCampaign(leadData),
                                 created: createdStr,
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
                                 phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
@@ -260,7 +260,7 @@ export async function post_metaWebhook(request) {
 //  }
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
-    const fields = 'id,created_time,ad_id,ad_name,form_id,field_data';
+    const fields = 'id,created_time,ad_id,ad_name,form_id,field_data,platform';
     const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${leadgenId}?fields=${fields}&access_token=${pageAccessToken}`;
 
     try {
@@ -271,7 +271,7 @@ async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
             console.error('POST fetchLeadFromMeta: Meta Graph API error:', data.error.message);
             return null;
         }
-
+        console.log('POST fetchLeadFromMeta:', JSON.stringify(data)); // temporary — remove after confirming
         return data;
     } catch (err) {
         console.error('POST fetchLeadFromMeta: Network error fetching lead from Meta:', err);
@@ -295,66 +295,18 @@ function parseFieldData(fieldDataArray) {
     return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  detectSource
-//  Fetches the ad's publisher_platform to determine Instagram vs Facebook.
-//  Returns "Instagram" | "Facebook" | "Meta Lead Ad" (fallback)
-// ─────────────────────────────────────────────────────────────────────────────
-async function detectSource(adId, pageToken) {
-    if (!adId) return 'Meta Lead Ad';
-    try {
-        const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${adId}?fields=publisher_platform,adset_id&access_token=${pageToken}`;
-        const res  = await fetch(url, { method: 'GET' });
-        const data = await res.json();
-        console.log('detectSource raw:', JSON.stringify(data));
-
-        if (data.error) {
-            console.error('detectSource API error:', data.error.message);
-            return 'Meta Lead Ad';
-        }
-
-        // publisher_platform is an array e.g. ["instagram"] or ["facebook"]
-        const platforms = Array.isArray(data.publisher_platform)
-            ? data.publisher_platform.map(p => p.toLowerCase())
-            : [String(data.publisher_platform || '').toLowerCase()];
-
-        console.log('platforms:', platforms);
-
-        const hasIG = platforms.some(p => p.includes('instagram'));
-        const hasFB = platforms.some(p => p.includes('facebook'));
-
-        if (hasIG && hasFB)  return 'Instagram & Facebook';
-        if (hasIG)           return 'Instagram';
-        if (hasFB)           return 'Facebook';
-
-        return 'Meta Lead Ad';
-    } catch (err) {
-        console.error('detectSource error:', err);
-        return 'Meta Lead Ad';
-    }
+function detectSource(leadData) {
+    const platform = (leadData.platform || '').toLowerCase();
+    if (platform === 'instagram') return 'Instagram';
+    if (platform === 'facebook')  return 'Facebook';
+    if (platform === 'ig')        return 'Instagram';
+    if (platform === 'fb')        return 'Facebook';
+    return 'Meta Lead Ad';
 }
  
- 
-// ─────────────────────────────────────────────────────────────────────────────
-//  detectCampaign
-//  Uses the Lead Form name as the campaign value — it's the most human-readable
-//  identifier AMS will have set when building the form in Ads Manager.
-//  Falls back to ad_name if form name unavailable.
-// ─────────────────────────────────────────────────────────────────────────────
-async function detectCampaign(formId, leadData, pageToken) {
-    if (!formId) return leadData.ad_name || '';
-    try {
-        const url  = `https://graph.facebook.com/${META_GRAPH_VERSION}/${formId}?fields=name&access_token=${pageToken}`;
-        const res  = await fetch(url, { method: 'GET' });
-        const data = await res.json();
-        console.log('detectCampaign raw:', JSON.stringify(data));
-
-        if (data.error || !data.name) return leadData.ad_name || '';
-        return data.name;
-    } catch (err) {
-        console.error('detectCampaign error:', err);
-        return leadData.ad_name || '';
-    }
+function detectCampaign(leadData) {
+    // ad_name is the ad name set in Ads Manager — most human readable
+    return leadData.ad_name || '';
 }
  
 
