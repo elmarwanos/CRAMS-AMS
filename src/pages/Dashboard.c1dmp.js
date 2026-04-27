@@ -34,63 +34,63 @@ import wixData from 'wix-data';
 // ─────────────────────────────────────────────────────────────────────────────
 const COLLECTION = 'PolarisLeads';
 
-let allItems        = [];   // full unfiltered dataset
+let allItems = [];   // full unfiltered dataset
 let currentFiltered = [];   // currently displayed (filtered + sorted) rows
-let sortAscending   = false;
+let sortAscending = false;
 
-let filterCampaign  = null;
-let filterBranch    = null;
-let filterModel     = null;
-let filterSource    = null;
+let filterCampaign = null;
+let filterBranch = null;
+let filterModel = null;
+let filterSource = null;
 let filterStartDate = null;
-let filterEndDate   = null;
+let filterEndDate = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TABLE COLUMN DEFINITIONS
 // ─────────────────────────────────────────────────────────────────────────────
 const SIMPLE_COLUMNS = [
-    { id: 'c1',  dataPath: 'created',           label: 'Created',           type: 'string', width: 120 },
-    { id: 'c2',  dataPath: 'source',            label: 'Source',            type: 'string', width: 100 },
-    { id: 'c3',  dataPath: 'campaign',          label: 'Campaign',          type: 'string', width: 150 },
-    { id: 'c4',  dataPath: 'salesExec',         label: 'Sales Exec',        type: 'string', width: 150 },
-    { id: 'c5',  dataPath: 'fullName',          label: 'Name',              type: 'string', width: 100 },
-    { id: 'c6',  dataPath: 'email',             label: 'Email',             type: 'string', width: 200 },
-    { id: 'c7',  dataPath: 'phone',             label: 'Phone',             type: 'string', width: 100 },
-    { id: 'c8',  dataPath: 'preferredChannel',  label: 'Pref. Channel',     type: 'string', width: 100 },
-    { id: 'c9',  dataPath: 'preferredTime',     label: 'Pref. Time',        type: 'string', width: 150 },
-    { id: 'c10', dataPath: 'model',             label: 'Model',             type: 'string', width: 150 },
+    { id: 'c1', dataPath: 'created', label: 'Created', type: 'string', width: 120 },
+    { id: 'c2', dataPath: 'source', label: 'Source', type: 'string', width: 100 },
+    { id: 'c3', dataPath: 'campaign', label: 'Campaign', type: 'string', width: 150 },
+    { id: 'c4', dataPath: 'salesExec', label: 'Sales Exec', type: 'string', width: 150 },
+    { id: 'c5', dataPath: 'fullName', label: 'Name', type: 'string', width: 100 },
+    { id: 'c6', dataPath: 'email', label: 'Email', type: 'string', width: 200 },
+    { id: 'c7', dataPath: 'phone', label: 'Phone', type: 'string', width: 100 },
+    { id: 'c8', dataPath: 'preferredChannel', label: 'Pref. Channel', type: 'string', width: 100 },
+    { id: 'c9', dataPath: 'preferredTime', label: 'Pref. Time', type: 'string', width: 150 },
+    { id: 'c10', dataPath: 'model', label: 'Model', type: 'string', width: 150 },
 ];
 
 const FULL_COLUMNS = [
-    { id: 'c1',  dataPath: 'created',           label: 'Created',           type: 'string', width: 120 },
-    { id: 'c2',  dataPath: 'source',            label: 'Source',            type: 'string', width: 100 },
-    { id: 'c3',  dataPath: 'campaign',          label: 'Campaign',          type: 'string', width: 150 },
-    { id: 'c4',  dataPath: 'salesExec',         label: 'Sales Exec',        type: 'string', width: 150 },
-    { id: 'c5',  dataPath: 'fullName',          label: 'Name',              type: 'string', width: 100 },
-    { id: 'c6',  dataPath: 'email',             label: 'Email',             type: 'string', width: 200 },
-    { id: 'c7',  dataPath: 'phone',             label: 'Phone',             type: 'string', width: 100 },
-    { id: 'c8',  dataPath: 'preferredChannel',  label: 'Pref. Channel',     type: 'string', width: 100 },
-    { id: 'c9',  dataPath: 'preferredTime',     label: 'Pref. Time',        type: 'string', width: 150 },
-    { id: 'c10', dataPath: 'model',             label: 'Model',             type: 'string', width: 150 },
-    { id: 'c11', dataPath: 'modelDetails',      label: 'Model Details',     type: 'string', width: 120 },
-    { id: 'c12', dataPath: 'branch',            label: 'Branch',            type: 'string', width: 130 },
-    { id: 'c13', dataPath: 'strength',          label: 'Strength',          type: 'string', width: 90  },
-    { id: 'c14', dataPath: 'status',            label: 'Status',            type: 'string', width: 100 },
-    { id: 'c15', dataPath: 'quotationIssued',   label: 'Quotation',         type: 'string', width: 100 },
-    { id: 'c16', dataPath: 'remarks',           label: 'Remarks',           type: 'string', width: 150 },
-    { id: 'c17', dataPath: 'followUp1',         label: 'Follow Up 1',       type: 'string', width: 130 },
-    { id: 'c18', dataPath: 'reply1',            label: 'Reply 1',           type: 'string', width: 130 },
-    { id: 'c19', dataPath: 'followUp2',         label: 'Follow Up 2',       type: 'string', width: 130 },
-    { id: 'c20', dataPath: 'reply2',            label: 'Reply 2',           type: 'string', width: 130 },
-    { id: 'c21', dataPath: 'followUp3',         label: 'Follow Up 3',       type: 'string', width: 130 },
-    { id: 'c22', dataPath: 'reply3',            label: 'Reply 3',           type: 'string', width: 130 },
-    { id: 'c23', dataPath: 'lostSaleReason',    label: 'Lost Reason',       type: 'string', width: 130 },
-    { id: 'c24', dataPath: 'lostSaleRemarks',   label: 'Lost Remarks',      type: 'string', width: 130 },
-    { id: 'c25', dataPath: 'notes',             label: 'Notes',             type: 'string', width: 180 },
-    { id: 'c26', dataPath: 'month',             label: 'Month',             type: 'string', width: 100 },
-    { id: 'c27', dataPath: 'qty',               label: 'Qty',               type: 'number', width: 70  },
-    { id: 'c28', dataPath: 'amtWithVat',        label: 'Amt w/ VAT',        type: 'number', width: 110 },
-    { id: 'c29', dataPath: 'amtWithoutVat',     label: 'Amt w/o VAT',       type: 'number', width: 110 },
+    { id: 'c1', dataPath: 'created', label: 'Created', type: 'string', width: 120 },
+    { id: 'c2', dataPath: 'source', label: 'Source', type: 'string', width: 100 },
+    { id: 'c3', dataPath: 'campaign', label: 'Campaign', type: 'string', width: 150 },
+    { id: 'c4', dataPath: 'salesExec', label: 'Sales Exec', type: 'string', width: 150 },
+    { id: 'c5', dataPath: 'fullName', label: 'Name', type: 'string', width: 100 },
+    { id: 'c6', dataPath: 'email', label: 'Email', type: 'string', width: 200 },
+    { id: 'c7', dataPath: 'phone', label: 'Phone', type: 'string', width: 100 },
+    { id: 'c8', dataPath: 'preferredChannel', label: 'Pref. Channel', type: 'string', width: 100 },
+    { id: 'c9', dataPath: 'preferredTime', label: 'Pref. Time', type: 'string', width: 150 },
+    { id: 'c10', dataPath: 'model', label: 'Model', type: 'string', width: 150 },
+    { id: 'c11', dataPath: 'modelDetails', label: 'Model Details', type: 'string', width: 120 },
+    { id: 'c12', dataPath: 'branch', label: 'Branch', type: 'string', width: 130 },
+    { id: 'c13', dataPath: 'strength', label: 'Strength', type: 'string', width: 90 },
+    { id: 'c14', dataPath: 'status', label: 'Status', type: 'string', width: 100 },
+    { id: 'c15', dataPath: 'quotationIssued', label: 'Quotation', type: 'string', width: 100 },
+    { id: 'c16', dataPath: 'remarks', label: 'Remarks', type: 'string', width: 150 },
+    { id: 'c17', dataPath: 'followUp1', label: 'Follow Up 1', type: 'string', width: 130 },
+    { id: 'c18', dataPath: 'reply1', label: 'Reply 1', type: 'string', width: 130 },
+    { id: 'c19', dataPath: 'followUp2', label: 'Follow Up 2', type: 'string', width: 130 },
+    { id: 'c20', dataPath: 'reply2', label: 'Reply 2', type: 'string', width: 130 },
+    { id: 'c21', dataPath: 'followUp3', label: 'Follow Up 3', type: 'string', width: 130 },
+    { id: 'c22', dataPath: 'reply3', label: 'Reply 3', type: 'string', width: 130 },
+    { id: 'c23', dataPath: 'lostSaleReason', label: 'Lost Reason', type: 'string', width: 130 },
+    { id: 'c24', dataPath: 'lostSaleRemarks', label: 'Lost Remarks', type: 'string', width: 130 },
+    { id: 'c25', dataPath: 'notes', label: 'Notes', type: 'string', width: 180 },
+    { id: 'c26', dataPath: 'month', label: 'Month', type: 'string', width: 100 },
+    { id: 'c27', dataPath: 'qty', label: 'Qty', type: 'number', width: 70 },
+    { id: 'c28', dataPath: 'amtWithVat', label: 'Amt w/ VAT', type: 'number', width: 110 },
+    { id: 'c29', dataPath: 'amtWithoutVat', label: 'Amt w/o VAT', type: 'number', width: 110 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ const FULL_COLUMNS = [
 $w.onReady(async function () {
 
     // 1. Verify session
-    const username    = storage.getItem('crams_username');
+    const username = storage.getItem('crams_username');
     const sessionHash = storage.getItem('crams_session_hash');
     if (!username || !sessionHash) { to('/'); return; }
 
@@ -109,13 +109,13 @@ $w.onReady(async function () {
     // 2. Show display name & update date
     $w('#accountName').text = storage.getItem('crams_display_name') || username;
     $w('#todaysDate').text = new Date().toLocaleDateString('en-GB', {
-        day:   'numeric',
+        day: 'numeric',
         month: 'long',
-        year:  'numeric'
+        year: 'numeric'
     });
 
     // 3. Simple view on load (switch unchecked = simple)
-    $w('#table1').columns   = SIMPLE_COLUMNS;
+    $w('#table1').columns = SIMPLE_COLUMNS;
     $w('#tableViewTxt').text = 'SIMPLE VIEW';
     $w('#tableViewSwitch').checked = false;
 
@@ -151,46 +151,46 @@ async function loadLeads() {
 function renderTable(items) {
     currentFiltered = items;
     $w('#table1').rows = items.map(item => ({
-        created:          item.created          || '',
-        source:           item.source           || '',
-        campaign:         item.campaign         || '',
-        salesExec:        item.salesExec        || '',
-        fullName:         item.fullName         || '',
-        email:            item.email            || '',
-        phone:            item.phone            || '',
+        created: item.created || '',
+        source: item.source || '',
+        campaign: item.campaign || '',
+        salesExec: item.salesExec || '',
+        fullName: item.fullName || '',
+        email: item.email || '',
+        phone: item.phone || '',
         preferredChannel: item.preferredChannel || '',
-        preferredTime:    item.preferredTime    || '',
-        model:            item.model            || '',
-        modelDetails:     item.modelDetails     || '',
-        branch:           item.branch           || '',
-        strength:         item.strength         || '',
-        status:           item.status           || '',
-        quotationIssued:  item.quotationIssued  || '',
-        remarks:          item.remarks          || '',
-        followUp1:        item.followUp1        || '',
-        reply1:           item.reply1           || '',
-        followUp2:        item.followUp2        || '',
-        reply2:           item.reply2           || '',
-        followUp3:        item.followUp3        || '',
-        reply3:           item.reply3           || '',
-        lostSaleReason:   item.lostSaleReason   || '',
-        lostSaleRemarks:  item.lostSaleRemarks  || '',
-        notes:            item.notes            || '',
-        month:            item.month            || '',
-        qty:              item.qty              || 0,
-        amtWithVat:       item.amtWithVat       || 0,
-        amtWithoutVat:    item.amtWithoutVat    || 0,
+        preferredTime: item.preferredTime || '',
+        model: item.model || '',
+        modelDetails: item.modelDetails || '',
+        branch: item.branch || '',
+        strength: item.strength || '',
+        status: item.status || '',
+        quotationIssued: item.quotationIssued || '',
+        remarks: item.remarks || '',
+        followUp1: item.followUp1 || '',
+        reply1: item.reply1 || '',
+        followUp2: item.followUp2 || '',
+        reply2: item.reply2 || '',
+        followUp3: item.followUp3 || '',
+        reply3: item.reply3 || '',
+        lostSaleReason: item.lostSaleReason || '',
+        lostSaleRemarks: item.lostSaleRemarks || '',
+        notes: item.notes || '',
+        month: item.month || '',
+        qty: item.qty || 0,
+        amtWithVat: item.amtWithVat || 0,
+        amtWithoutVat: item.amtWithoutVat || 0,
     }));
 }
 
 function populateFilterOptions(items) {
-    const unique    = (key) => ['All', ...new Set(items.map(i => i[key]).filter(Boolean))];
+    const unique = (key) => ['All', ...new Set(items.map(i => i[key]).filter(Boolean))];
     const toOptions = (vals) => vals.map(v => ({ label: v, value: v === 'All' ? '' : v }));
 
     $w('#filterCampaignDrop').options = toOptions(unique('campaign'));
     $w('#filterShowroomDrop').options = toOptions(unique('branch'));
-    $w('#filterVehicleDrop').options  = toOptions(unique('model'));
-    $w('#filterSourceDrop').options   = toOptions(unique('source'));
+    $w('#filterVehicleDrop').options = toOptions(unique('model'));
+    $w('#filterSourceDrop').options = toOptions(unique('source'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,10 +198,10 @@ function populateFilterOptions(items) {
 // ─────────────────────────────────────────────────────────────────────────────
 $w('#tableViewSwitch').onClick(() => {
     if ($w('#tableViewSwitch').checked) {
-        $w('#table1').columns    = FULL_COLUMNS;
+        $w('#table1').columns = FULL_COLUMNS;
         $w('#tableViewTxt').text = 'EXPANDED VIEW';
     } else {
-        $w('#table1').columns    = SIMPLE_COLUMNS;
+        $w('#table1').columns = SIMPLE_COLUMNS;
         $w('#tableViewTxt').text = 'SIMPLE VIEW';
     }
     renderTable(currentFiltered);
@@ -218,9 +218,9 @@ $w('#generateCSV').onClick(() => {
         csvContent += row;
     });
 
-    const now      = new Date();
-    const pad      = (n) => n.toString().padStart(2, '0');
-    const fileName = `PolarisLeads-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+    const now = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    const fileName = `PolarisLeads-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
 
     $w('#htmlDownloader').postMessage({ csvContent, fileName });
 });
@@ -239,10 +239,10 @@ $w('#sortDateDrop').onChange(e => {
 function applyFilters() {
     let filtered = allItems;
 
-    if (filterCampaign)  filtered = filtered.filter(i => i.campaign === filterCampaign);
-    if (filterBranch)    filtered = filtered.filter(i => i.branch   === filterBranch);
-    if (filterModel)     filtered = filtered.filter(i => i.model    === filterModel);
-    if (filterSource)    filtered = filtered.filter(i => i.source   === filterSource);
+    if (filterCampaign) filtered = filtered.filter(i => i.campaign === filterCampaign);
+    if (filterBranch) filtered = filtered.filter(i => i.branch === filterBranch);
+    if (filterModel) filtered = filtered.filter(i => i.model === filterModel);
+    if (filterSource) filtered = filtered.filter(i => i.source === filterSource);
 
     if (filterStartDate) {
         filtered = filtered.filter(i => i.created && i.created >= filterStartDate);
@@ -268,9 +268,9 @@ function applyFilters() {
 //  FILTER EVENT LISTENERS
 // ─────────────────────────────────────────────────────────────────────────────
 $w('#filterCampaignDrop').onChange(e => { filterCampaign = e.target.value || null; applyFilters(); });
-$w('#filterShowroomDrop').onChange(e => { filterBranch   = e.target.value || null; applyFilters(); });
-$w('#filterVehicleDrop').onChange(e  => { filterModel    = e.target.value || null; applyFilters(); });
-$w('#filterSourceDrop').onChange(e   => { filterSource   = e.target.value || null; applyFilters(); });
+$w('#filterShowroomDrop').onChange(e => { filterBranch = e.target.value || null; applyFilters(); });
+$w('#filterVehicleDrop').onChange(e => { filterModel = e.target.value || null; applyFilters(); });
+$w('#filterSourceDrop').onChange(e => { filterSource = e.target.value || null; applyFilters(); });
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DATE FILTERS
@@ -289,15 +289,15 @@ $w('#endDatePicker').onChange(e => {
     applyFilters();
 });
 
-$w('#lastWeekBtn').onClick(e  => setQuickDateFilter(...quickDateRange(7),  e.target));
+$w('#lastWeekBtn').onClick(e => setQuickDateFilter(...quickDateRange(7), e.target));
 $w('#last2WeekBtn').onClick(e => setQuickDateFilter(...quickDateRange(14), e.target));
 $w('#lastMonthBtn').onClick(e => setQuickDateFilter(...quickDateRange(30), e.target));
 
 $w('#allDatesBtn').onClick(e => {
     filterStartDate = null;
-    filterEndDate   = null;
+    filterEndDate = null;
     $w('#startDatePicker').value = null;
-    $w('#endDatePicker').value   = null;
+    $w('#endDatePicker').value = null;
     $w('#endDatePicker').disable();
     enableAllDateBtns();
     e.target.disable();
@@ -306,22 +306,22 @@ $w('#allDatesBtn').onClick(e => {
 
 $w('#clearFiltersBtn').onClick(() => {
     // Reset all filter state
-    filterCampaign  = null;
-    filterBranch    = null;
-    filterModel     = null;
-    filterSource    = null;
+    filterCampaign = null;
+    filterBranch = null;
+    filterModel = null;
+    filterSource = null;
     filterStartDate = null;
-    filterEndDate   = null;
-    sortAscending   = false;
+    filterEndDate = null;
+    sortAscending = false;
 
     // Reset UI elements
-    $w('#filterCampaignDrop').value  = '';
-    $w('#filterShowroomDrop').value  = '';
-    $w('#filterVehicleDrop').value   = '';
-    $w('#filterSourceDrop').value    = '';
-    $w('#sortDateDrop').value        = 'Descending';
-    $w('#startDatePicker').value     = null;
-    $w('#endDatePicker').value       = null;
+    $w('#filterCampaignDrop').value = '';
+    $w('#filterShowroomDrop').value = '';
+    $w('#filterVehicleDrop').value = '';
+    $w('#filterSourceDrop').value = '';
+    $w('#sortDateDrop').value = 'Descending';
+    $w('#startDatePicker').value = null;
+    $w('#endDatePicker').value = null;
     $w('#endDatePicker').disable();
 
     enableAllDateBtns();
@@ -349,7 +349,7 @@ function toDateString(dateValue) {
 }
 
 function quickDateRange(days) {
-    const end   = new Date();
+    const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - days);
     return [toDateString(start), toDateString(end)];
@@ -357,9 +357,9 @@ function quickDateRange(days) {
 
 function setQuickDateFilter(start, end, clickedBtn) {
     filterStartDate = start;
-    filterEndDate   = end;
+    filterEndDate = end;
     $w('#startDatePicker').value = null;
-    $w('#endDatePicker').value   = null;
+    $w('#endDatePicker').value = null;
     $w('#endDatePicker').disable();
     enableAllDateBtns();
     clickedBtn.disable();
@@ -394,101 +394,151 @@ function enableAllDateBtns() {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+const COLOURS = {
+    instagram: 'rgba(193, 53, 132, 0.75)',
+    facebook: 'rgba(24,  119, 242, 0.75)',
+    igAndFb: 'rgba(100,  80, 180, 0.75)',
+    other: 'rgba(0,     0,   0, 0.25)',
+    new: 'rgba(0,     0,   0, 0.75)',
+    contacted: 'rgba(24,  119, 242, 0.75)',
+    qualified: 'rgba(34,  197,  94, 0.75)',
+    lost: 'rgba(231,  61,   0, 0.75)',
+    grey: 'rgba(150, 150, 150, 0.75)',
+};
+
+// Auto-generate distinct colours for models/branches (more than palette covers)
+function generateColour(index) {
+    const palette = [
+        'rgba(231,  61,   0, 0.75)',
+        'rgba(0,     0,   0, 0.75)',
+        'rgba(24,  119, 242, 0.75)',
+        'rgba(34,  197,  94, 0.75)',
+        'rgba(193,  53, 132, 0.75)',
+        'rgba(255, 196,   0, 0.75)',
+        'rgba(100,  80, 180, 0.75)',
+        'rgba(0,   180, 180, 0.75)',
+    ];
+    return palette[index % palette.length];
+}
 
 function setupCharts(items) {
-    setupDailySourceChart(items);
-    setupStatusChart(items);
-    setupModelChart(items);
+    setupDailySourceChart(items); //top left
+    setupDailyModelChart(items);  //top center
+    setupDailyBranchChart(items); //top right
+    setupTotalSourceChart(items); //bottom left
+    setupTotalModelChart(items);  //bottom center
+    setupTotalStatusChart(items); //bottom right
 }
- 
- 
-// ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
-function setupDailySourceChart(items) {
-    // Bucket each item into a date key and source bucket
-    const dateMap = {};  // { 'Apr 23': { Instagram: 0, Facebook: 0, 'IG & FB': 0, Other: 0 } }
- 
+
+// Shared helper
+function groupByDateAndField(items, fieldKey, fallback = 'Unknown') {
+    const dateMap = {};   // { dateKey: { category: count } }
+
     items.forEach(item => {
         if (!item.created) return;
         const dateKey = new Date(item.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const category = item[fieldKey] || fallback;
+
+        if (!dateMap[dateKey]) dateMap[dateKey] = {};
+        dateMap[dateKey][category] = (dateMap[dateKey][category] || 0) + 1;
+    });
+
+    const labels = Object.keys(dateMap).reverse();
+    const categories = [...new Set(
+        Object.values(dateMap).flatMap(d => Object.keys(d))
+    )];
+
+    return { labels, categories, dateMap };
+}
+// ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
+function setupDailySourceChart(items) {
+    const sourceColour = (src) => {
+        const s = src.toLowerCase();
+        if (s === 'instagram')               return COLOURS.instagram;
+        if (s === 'facebook')                return COLOURS.facebook;
+        if (s.includes('instagram') && s.includes('facebook')) return COLOURS.igAndFb;
+        return COLOURS.other;
+    };
  
-        if (!dateMap[dateKey]) {
-            dateMap[dateKey] = { Instagram: 0, Facebook: 0, 'IG & FB': 0, Other: 0 };
-        }
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'source', 'Other');
  
-        const src = (item.source || '').toLowerCase();
-        if (src === 'instagram')               dateMap[dateKey]['Instagram']++;
-        else if (src === 'facebook')           dateMap[dateKey]['Facebook']++;
-        else if (src.includes('instagram') && src.includes('facebook')) dateMap[dateKey]['IG & FB']++;
-        else                                   dateMap[dateKey]['Other']++;
+    const datasets = categories.map(cat => ({
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
+        backgroundColor: sourceColour(cat),
+        borderColor:     sourceColour(cat),
+        borderWidth:     0,
+    }));
+ 
+    // @ts-ignore
+    $w('#dailySourceChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
+}
+
+
+// ─── CHART 2: Daily Leads by Model ────────────────────────────────────────────────
+function setupDailyModelChart(items) {
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'model', 'Unknown');
+ 
+    const datasets = categories.map((cat, i) => ({
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
+        backgroundColor: generateColour(i),
+        borderColor:     generateColour(i),
+        borderWidth:     0,
+    }));
+ 
+    // @ts-ignore
+    $w('#dailyModelChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
+}
+
+// ─── CHART 3: Daily Leads by Branch ────────────────────────────────────────────────
+function setupDailyBranchChart(items) {
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'branch', 'Unknown');
+ 
+    const datasets = categories.map((cat, i) => ({
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
+        backgroundColor: generateColour(i),
+        borderColor:     generateColour(i),
+        borderWidth:     0,
+    }));
+ 
+    // @ts-ignore
+    $w('#dailyBranchChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
+}
+
+// ─── CHART 4: Total Leads by Source ────────────────────────────────────────────────
+function setupTotalSourceChart(items) {
+    const sourceMap = {};
+    items.forEach(item => {
+        const src = item.source || 'Other';
+        sourceMap[src] = (sourceMap[src] || 0) + 1;
     });
  
-    const labels = Object.keys(dateMap).reverse();
+    const sorted = Object.entries(sourceMap).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(e => e[0]);
+    const data   = sorted.map(e => e[1]);
+ 
+    const backgroundColors = labels.map(src => {
+        const s = src.toLowerCase();
+        if (s === 'instagram')                                   return COLOURS.instagram;
+        if (s === 'facebook')                                    return COLOURS.facebook;
+        if (s.includes('instagram') && s.includes('facebook'))  return COLOURS.igAndFb;
+        return COLOURS.other;
+    });
  
     const chartData = {
         labels,
-        datasets: [
-            {
-                label: 'Instagram',
-                data: labels.map(d => dateMap[d].Instagram),
-                backgroundColor: '#C28B98',  // Instagram pink
-                borderColor:     '#C28B98',
-                borderWidth: 0,
-            },
-            {
-                label: 'Facebook',
-                data: labels.map(d => dateMap[d].Facebook),
-                backgroundColor: '#72152A',  // Facebook blue
-                borderColor:     '#72152A',
-                borderWidth: 0,
-            },
-            {
-                label: 'Other',
-                data: labels.map(d => dateMap[d].Other),
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                borderColor:     'rgba(0, 0, 0, 0.3)',
-                borderWidth: 0,
-            },
-        ]
+        datasets: [{ data, backgroundColor: backgroundColors, borderWidth: 0 }]
     };
  
-    $w('#dailySourceChart').setAttribute('data-chart', JSON.stringify(chartData));
+    // @ts-ignore
+    $w('#totalSourceChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
  
  
-// ─── CHART 2: Leads by Status ────────────────────────────────────────────────
-function setupStatusChart(items) {
-    const statuses = ['New', 'Contacted', 'Qualified', 'Lost'];
-    const counts   = statuses.map(s => items.filter(i => (i.status || 'New') === s).length);
- 
-    // Catch any items with unlisted statuses and add to Other
-    const knownCount = counts.reduce((a, b) => a + b, 0);
-    const otherCount = items.length - knownCount;
- 
-    const labels = [...statuses];
-    const data   = [...counts];
-    if (otherCount > 0) { labels.push('Other'); data.push(otherCount); }
- 
-    const chartData = {
-        labels,
-        datasets: [{
-            data,
-            backgroundColor: [
-                '#52d387',      // New — blue
-                '#916abe',      // Contacted — green
-                '#d6506d',      // Qualified — red
-                '#343434',      // Lost — black
-            ],
-            borderWidth: 0,
-        }]
-    };
- 
-    $w('#statusChart').setAttribute('data-chart', JSON.stringify(chartData));
-}
- 
- 
-// ─── CHART 3: Leads by Model ─────────────────────────────────────────────────
-function setupModelChart(items) {
-    // Count leads per model, sort descending
+// ─── CHART 5: Total Leads by Model ────────────────────────────────────────────────
+function setupTotalModelChart(items) {
     const modelMap = {};
     items.forEach(item => {
         const model = item.model || 'Unknown';
@@ -502,16 +552,44 @@ function setupModelChart(items) {
     const chartData = {
         labels,
         datasets: [{
-            label: 'Leads',
+            label:           'Leads',
             data,
-            backgroundColor: labels.map((_, i) =>
-                i % 2 === 0
-                    ? '#C28B98'
-                    : '#72152A'
-            ),
-            borderWidth: 0,
+            backgroundColor: labels.map((_, i) => generateColour(i)),
+            borderWidth:     0,
         }]
     };
  
-    $w('#modelChart').setAttribute('data-chart', JSON.stringify(chartData));
+    // @ts-ignore
+    $w('#totalModelChart').setAttribute('data-chart', JSON.stringify(chartData));
+}
+ 
+ 
+// ─── CHART 6: Total Leads by Status ────────────────────────────────────────────────
+function setupTotalStatusChart(items) {
+    const ORDER   = ['New', 'Contacted', 'Qualified', 'Lost'];
+    const CLRS    = [COLOURS.new, COLOURS.contacted, COLOURS.qualified, COLOURS.lost];
+ 
+    const statusMap = {};
+    items.forEach(item => {
+        const s = item.status || 'New';
+        statusMap[s] = (statusMap[s] || 0) + 1;
+    });
+ 
+    // Known statuses first, then any extras
+    const labels = [...ORDER.filter(s => statusMap[s])];
+    const colors = [...ORDER.filter(s => statusMap[s]).map((s, i) => CLRS[ORDER.indexOf(s)])];
+ 
+    Object.keys(statusMap).forEach(s => {
+        if (!ORDER.includes(s)) { labels.push(s); colors.push(COLOURS.grey); }
+    });
+ 
+    const data = labels.map(s => statusMap[s]);
+ 
+    const chartData = {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+    };
+ 
+    // @ts-ignore
+    $w('#totalStatusChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
