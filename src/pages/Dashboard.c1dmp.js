@@ -395,19 +395,18 @@ function enableAllDateBtns() {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 const SOURCE_COLOURS = {
-    'instagram':             'rgba(193,  53, 132, 0.80)',
-    'facebook':              'rgba( 24, 119, 242, 0.80)',
-    'instagram & facebook':  'rgba(100,  80, 180, 0.80)',
-    'meta lead ad':          'rgba(  0,   0,   0, 0.30)',
+    'instagram':             'rgba(219, 44, 143, 0.8)',
+    'facebook':              'rgba(24, 119, 242, 0.8)',
+    'meta lead ad':          'rgba(0, 0, 0, 0.3)',
 };
 function sourceColour(src) {
     return SOURCE_COLOURS[(src || '').toLowerCase()] || 'rgba(150, 150, 150, 0.80)';
 }
 
 const STATUS_COLOURS = {
-    'New':       'rgba(  0,   0,   0, 0.80)',
-    'Contacted': 'rgba( 24, 119, 242, 0.80)',
-    'Qualified': 'rgba( 34, 197,  94, 0.80)',
+    'New':       'rgba( 34, 197,  94, 0.80)',
+    'Contacted': 'rgba(0, 255, 221, 0.8)',
+    'Qualified': 'rgba(242, 255, 0, 0.8)',
     'Lost':      'rgba(231,  61,   0, 0.80)',
 };
 
@@ -416,25 +415,17 @@ function statusColour(s) {
 }
 
 const MODEL_PALETTE = [
-    'rgba(231,  61,   0, 0.80)',
-    'rgba(  0,   0,   0, 0.80)',
-    'rgba( 24, 119, 242, 0.80)',
-    'rgba( 34, 197,  94, 0.80)',
-    'rgba(193,  53, 132, 0.80)',
-    'rgba(255, 196,   0, 0.80)',
     'rgba(100,  80, 180, 0.80)',
     'rgba(  0, 180, 180, 0.80)',
+    'rgba(0, 147, 246, 0.8)',
 ];
  
 const BRANCH_PALETTE = [
-    'rgba(231,  61,   0, 0.80)',
-    'rgba(  0,   0,   0, 0.80)',
-    'rgba(100,  80, 180, 0.80)',
-    'rgba(  0, 180, 180, 0.80)',
-    'rgba(255, 196,   0, 0.80)',
-    'rgba( 34, 197,  94, 0.80)',
-    'rgba(193,  53, 132, 0.80)',
-    'rgba( 24, 119, 242, 0.80)',
+    'rgb(255, 140, 0)',
+    'rgb(132, 255, 0)',
+    'rgb(0, 117, 93)',
+    'rgb(0, 23, 117)',
+    'rgb(117, 0, 27)',
 ];
 
 function buildColorMap(names, palette) {
