@@ -171,6 +171,7 @@ export async function post_metaWebhook(request) {
 
                             // 3. Parse Meta's field_data array into a flat object
                             const parsedFields = parseFieldData(leadData.field_data || []);
+                            console.log('parsedFields:', JSON.stringify(parsedFields));
 
                             // 4. Build the CMS record
                             const metaDate = created_time ? new Date(created_time * 1000) : new Date();
@@ -184,7 +185,7 @@ export async function post_metaWebhook(request) {
                                 adId: ad_id || '',
 
                                 // From Meta form (required) ─────────────────
-                                source:   detectSource(leadData), 
+                                source: detectSource(leadData),
                                 campaign: detectCampaign(leadData),
                                 created: createdStr,
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
@@ -194,9 +195,9 @@ export async function post_metaWebhook(request) {
                                 // From Meta form (optional) ─────────────────
                                 strength: parsedFields['strength'] || '',
                                 salesExec: parsedFields['sales_exec'] || parsedFields['sales_executive'] || '',
-                                preferredChannel: parsedFields['preferred_channel'] || parsedFields['contact_method'] || '',
-                                preferredTime: parsedFields['preferred_time'] || parsedFields['best_time'] || '',
-                                branch: parsedFields['branch'] || parsedFields['dealer_location'] || '',
+                                branch: parsedFields['what_showroom_you_would_like_to_visit?'] || parsedFields['branch'] || parsedFields['dealer_location'] || '',
+                                preferredChannel: parsedFields['what_is_your_preferred_mode_of_contact?'] || parsedFields['preferred_channel'] || parsedFields['contact_method'] || '',
+                                preferredTime: parsedFields['preferred_time_to_contact_you?'] || parsedFields['preferred_time'] || parsedFields['best_time'] || '',
                                 model: parsedFields['vehicle_model'] || parsedFields['model'] || '',
                                 modelDetails: parsedFields['model_details'] || parsedFields['variant'] || '',
                                 remarks: parsedFields['remarks'] || parsedFields['comment'] || '',
@@ -298,17 +299,17 @@ function parseFieldData(fieldDataArray) {
 function detectSource(leadData) {
     const platform = (leadData.platform || '').toLowerCase();
     if (platform === 'instagram') return 'Instagram';
-    if (platform === 'facebook')  return 'Facebook';
-    if (platform === 'ig')        return 'Instagram';
-    if (platform === 'fb')        return 'Facebook';
+    if (platform === 'facebook') return 'Facebook';
+    if (platform === 'ig') return 'Instagram';
+    if (platform === 'fb') return 'Facebook';
     return 'Meta Lead Ad';
 }
- 
+
 function detectCampaign(leadData) {
     // ad_name is the ad name set in Ads Manager — most human readable
     return leadData.ad_name || '';
 }
- 
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  checkDuplicate
