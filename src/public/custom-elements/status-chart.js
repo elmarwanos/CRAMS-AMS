@@ -23,13 +23,7 @@ class StatusChart extends HTMLElement {
     attributeChangedCallback(name, oldValue, newValue) {
     if (name === 'data-chart' && newValue) {
         try {
-            const data = JSON.parse(newValue);
-            if (this._chartReady) {
-                // Scripts already loaded, render immediately
-                this.renderChart(data);
-            }
-            // If not ready yet, connectedCallback's loadAll callback will render it
-            // because hasAttribute('data-chart') will be true by then
+            this.renderChart(JSON.parse(newValue));
         } catch (e) {
             console.error('status-chart: invalid data', e);
         }
