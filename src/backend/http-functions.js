@@ -261,21 +261,40 @@ export async function post_metaWebhook(request) {
 //  }
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
+    // ── MOCK FOR TESTING — remove before going live ──
+    if (leadgenId.startsWith('TEST_')) {
+        return {
+            id: leadgenId,
+            created_time: "2026-04-27T10:00:00+0000",
+            ad_id: "120243105821460256",
+            ad_name: "Polaris UAE - RZR - Summer 2026",
+            form_id: "1451274946319361",
+            platform: "ig",
+            field_data: [
+                { name: "full_name",                              values: ["Test User"]          },
+                { name: "email",                                  values: ["test@example.com"]   },
+                { name: "phone",                                  values: ["+971501234567"]      },
+                { name: "what_showroom_you_would_like_to_visit?", values: ["dubai"]             },
+                { name: "what_is_your_preferred_mode_of_contact?",values: ["whatsapp"]          },
+                { name: "preferred_time_to_contact_you?",         values: ["morning"]           }
+            ]
+        };
+    }
+    // ── END MOCK ──
+
+    // real fetch below unchanged
     const fields = 'id,created_time,ad_id,ad_name,form_id,field_data,platform';
     const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${leadgenId}?fields=${fields}&access_token=${pageAccessToken}`;
-
     try {
-        const res = await fetch(url, { method: 'GET' });
+        const res  = await fetch(url, { method: 'GET' });
         const data = await res.json();
-
         if (data.error) {
-            console.error('POST fetchLeadFromMeta: Meta Graph API error:', data.error.message);
+            console.error('Meta Graph API error:', data.error.message);
             return null;
         }
-        console.log('POST fetchLeadFromMeta:', JSON.stringify(data)); // temporary — remove after confirming
         return data;
     } catch (err) {
-        console.error('POST fetchLeadFromMeta: Network error fetching lead from Meta:', err);
+        console.error('Network error fetching lead:', err);
         return null;
     }
 }
