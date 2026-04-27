@@ -394,73 +394,103 @@ function enableAllDateBtns() {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-const COLOURS = {
-    instagram: 'rgba(193, 53, 132, 0.75)',
-    facebook: 'rgba(24,  119, 242, 0.75)',
-    igAndFb: 'rgba(100,  80, 180, 0.75)',
-    other: 'rgba(0,     0,   0, 0.25)',
-    new: 'rgba(0,     0,   0, 0.75)',
-    contacted: 'rgba(24,  119, 242, 0.75)',
-    qualified: 'rgba(34,  197,  94, 0.75)',
-    lost: 'rgba(231,  61,   0, 0.75)',
-    grey: 'rgba(150, 150, 150, 0.75)',
+const SOURCE_COLOURS = {
+    'instagram':             'rgba(193,  53, 132, 0.80)',
+    'facebook':              'rgba( 24, 119, 242, 0.80)',
+    'instagram & facebook':  'rgba(100,  80, 180, 0.80)',
+    'meta lead ad':          'rgba(  0,   0,   0, 0.30)',
 };
-
-// Auto-generate distinct colours for models/branches (more than palette covers)
-function generateColour(index) {
-    const palette = [
-        'rgba(231,  61,   0, 0.75)',
-        'rgba(0,     0,   0, 0.75)',
-        'rgba(24,  119, 242, 0.75)',
-        'rgba(34,  197,  94, 0.75)',
-        'rgba(193,  53, 132, 0.75)',
-        'rgba(255, 196,   0, 0.75)',
-        'rgba(100,  80, 180, 0.75)',
-        'rgba(0,   180, 180, 0.75)',
-    ];
-    return palette[index % palette.length];
+function sourceColour(src) {
+    return SOURCE_COLOURS[(src || '').toLowerCase()] || 'rgba(150, 150, 150, 0.80)';
 }
 
+const STATUS_COLOURS = {
+    'New':       'rgba(  0,   0,   0, 0.80)',
+    'Contacted': 'rgba( 24, 119, 242, 0.80)',
+    'Qualified': 'rgba( 34, 197,  94, 0.80)',
+    'Lost':      'rgba(231,  61,   0, 0.80)',
+};
+
+function statusColour(s) {
+    return STATUS_COLOURS[s] || 'rgba(150, 150, 150, 0.80)';
+}
+
+const MODEL_PALETTE = [
+    'rgba(231,  61,   0, 0.80)',
+    'rgba(  0,   0,   0, 0.80)',
+    'rgba( 24, 119, 242, 0.80)',
+    'rgba( 34, 197,  94, 0.80)',
+    'rgba(193,  53, 132, 0.80)',
+    'rgba(255, 196,   0, 0.80)',
+    'rgba(100,  80, 180, 0.80)',
+    'rgba(  0, 180, 180, 0.80)',
+];
+ 
+const BRANCH_PALETTE = [
+    'rgba(231,  61,   0, 0.80)',
+    'rgba(  0,   0,   0, 0.80)',
+    'rgba(100,  80, 180, 0.80)',
+    'rgba(  0, 180, 180, 0.80)',
+    'rgba(255, 196,   0, 0.80)',
+    'rgba( 34, 197,  94, 0.80)',
+    'rgba(193,  53, 132, 0.80)',
+    'rgba( 24, 119, 242, 0.80)',
+];
+
+function buildColorMap(names, palette) {
+    const map = {};
+    names.forEach((name, i) => {
+        map[name] = palette[i % palette.length];
+    });
+    return map;
+}
+
+// ------------------- COLORS DONE ------------------- 
+
 function setupCharts(items) {
-    setupDailySourceChart(items); //top left
-    setupDailyModelChart(items);  //top center
-    setupDailyBranchChart(items); //top right
-    setupTotalSourceChart(items); //bottom left
-    setupTotalModelChart(items);  //bottom center
-    setupTotalStatusChart(items); //bottom right
+    // Build shared color maps so paired charts use identical colors
+    const allModels   = [...new Set(items.map(i => i.model).filter(Boolean))];
+    const allBranches = [...new Set(items.map(i => i.branch).filter(Boolean))];
+    const modelColorMap  = buildColorMap(allModels,   MODEL_PALETTE);
+    const branchColorMap = buildColorMap(allBranches, BRANCH_PALETTE);
+ 
+    setupDailySourceChart(items);
+    setupDailyModelChart(items, modelColorMap);
+    setupDailyBranchChart(items, branchColorMap);
+    setupTotalSourceChart(items);
+    setupTotalModelChart(items, modelColorMap);
+    setupTotalStatusChart(items);
 }
 
 // Shared helper
-function groupByDateAndField(items, fieldKey, fallback = 'Unknown') {
-    const dateMap = {};   // { dateKey: { category: count } }
-
+function groupByDateAndField(items, fieldKey) {
+    const dateMap = {};
+ 
     items.forEach(item => {
         if (!item.created) return;
-        const dateKey = new Date(item.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        const category = item[fieldKey] || fallback;
-
+        const value = item[fieldKey];
+        if (!value || value.trim() === '') return;  // skip empty — no Unknown
+ 
+        const dateKey = new Date(item.created).toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'short'
+        });
+ 
         if (!dateMap[dateKey]) dateMap[dateKey] = {};
-        dateMap[dateKey][category] = (dateMap[dateKey][category] || 0) + 1;
+        dateMap[dateKey][value] = (dateMap[dateKey][value] || 0) + 1;
     });
-
-    const labels = Object.keys(dateMap).reverse();
+ 
+    const labels     = Object.keys(dateMap).reverse();
     const categories = [...new Set(
         Object.values(dateMap).flatMap(d => Object.keys(d))
     )];
-
+ 
     return { labels, categories, dateMap };
 }
+
+
 // ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
 function setupDailySourceChart(items) {
-    const sourceColour = (src) => {
-        const s = src.toLowerCase();
-        if (s === 'instagram')               return COLOURS.instagram;
-        if (s === 'facebook')                return COLOURS.facebook;
-        if (s.includes('instagram') && s.includes('facebook')) return COLOURS.igAndFb;
-        return COLOURS.other;
-    };
- 
-    const { labels, categories, dateMap } = groupByDateAndField(items, 'source', 'Other');
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'source');
  
     const datasets = categories.map(cat => ({
         label:           cat,
@@ -476,14 +506,14 @@ function setupDailySourceChart(items) {
 
 
 // ─── CHART 2: Daily Leads by Model ────────────────────────────────────────────────
-function setupDailyModelChart(items) {
-    const { labels, categories, dateMap } = groupByDateAndField(items, 'model', 'Unknown');
+function setupDailyModelChart(items, colorMap) {
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'model');
  
-    const datasets = categories.map((cat, i) => ({
+    const datasets = categories.map(cat => ({
         label:           cat,
         data:            labels.map(d => dateMap[d]?.[cat] || 0),
-        backgroundColor: generateColour(i),
-        borderColor:     generateColour(i),
+        backgroundColor: colorMap[cat] || MODEL_PALETTE[0],
+        borderColor:     colorMap[cat] || MODEL_PALETTE[0],
         borderWidth:     0,
     }));
  
@@ -492,14 +522,14 @@ function setupDailyModelChart(items) {
 }
 
 // ─── CHART 3: Daily Leads by Branch ────────────────────────────────────────────────
-function setupDailyBranchChart(items) {
-    const { labels, categories, dateMap } = groupByDateAndField(items, 'branch', 'Unknown');
+function setupDailyBranchChart(items, colorMap) {
+    const { labels, categories, dateMap } = groupByDateAndField(items, 'branch');
  
-    const datasets = categories.map((cat, i) => ({
+    const datasets = categories.map(cat => ({
         label:           cat,
         data:            labels.map(d => dateMap[d]?.[cat] || 0),
-        backgroundColor: generateColour(i),
-        borderColor:     generateColour(i),
+        backgroundColor: colorMap[cat] || BRANCH_PALETTE[0],
+        borderColor:     colorMap[cat] || BRANCH_PALETTE[0],
         borderWidth:     0,
     }));
  
@@ -511,37 +541,31 @@ function setupDailyBranchChart(items) {
 function setupTotalSourceChart(items) {
     const sourceMap = {};
     items.forEach(item => {
-        const src = item.source || 'Other';
+        const src = item.source;
+        if (!src || src.trim() === '') return;  // skip empty
         sourceMap[src] = (sourceMap[src] || 0) + 1;
     });
  
     const sorted = Object.entries(sourceMap).sort((a, b) => b[1] - a[1]);
     const labels = sorted.map(e => e[0]);
     const data   = sorted.map(e => e[1]);
- 
-    const backgroundColors = labels.map(src => {
-        const s = src.toLowerCase();
-        if (s === 'instagram')                                   return COLOURS.instagram;
-        if (s === 'facebook')                                    return COLOURS.facebook;
-        if (s.includes('instagram') && s.includes('facebook'))  return COLOURS.igAndFb;
-        return COLOURS.other;
-    });
+    const colors = labels.map(src => sourceColour(src));
  
     const chartData = {
         labels,
-        datasets: [{ data, backgroundColor: backgroundColors, borderWidth: 0 }]
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
     };
  
     // @ts-ignore
     $w('#totalSourceChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
  
- 
 // ─── CHART 5: Total Leads by Model ────────────────────────────────────────────────
-function setupTotalModelChart(items) {
+function setupTotalModelChart(items, colorMap) {
     const modelMap = {};
     items.forEach(item => {
-        const model = item.model || 'Unknown';
+        const model = item.model;
+        if (!model || model.trim() === '') return;  // skip empty
         modelMap[model] = (modelMap[model] || 0) + 1;
     });
  
@@ -554,7 +578,7 @@ function setupTotalModelChart(items) {
         datasets: [{
             label:           'Leads',
             data,
-            backgroundColor: labels.map((_, i) => generateColour(i)),
+            backgroundColor: labels.map(m => colorMap[m] || MODEL_PALETTE[0]),
             borderWidth:     0,
         }]
     };
@@ -566,24 +590,22 @@ function setupTotalModelChart(items) {
  
 // ─── CHART 6: Total Leads by Status ────────────────────────────────────────────────
 function setupTotalStatusChart(items) {
-    const ORDER   = ['New', 'Contacted', 'Qualified', 'Lost'];
-    const CLRS    = [COLOURS.new, COLOURS.contacted, COLOURS.qualified, COLOURS.lost];
+    const ORDER = ['New', 'Contacted', 'Qualified', 'Lost'];
  
     const statusMap = {};
     items.forEach(item => {
-        const s = item.status || 'New';
+        const s = item.status;
+        if (!s || s.trim() === '') return;  // skip empty
         statusMap[s] = (statusMap[s] || 0) + 1;
     });
  
-    // Known statuses first, then any extras
-    const labels = [...ORDER.filter(s => statusMap[s])];
-    const colors = [...ORDER.filter(s => statusMap[s]).map((s, i) => CLRS[ORDER.indexOf(s)])];
- 
-    Object.keys(statusMap).forEach(s => {
-        if (!ORDER.includes(s)) { labels.push(s); colors.push(COLOURS.grey); }
-    });
- 
-    const data = labels.map(s => statusMap[s]);
+    // Known statuses in order first, then any extras
+    const labels = [
+        ...ORDER.filter(s => statusMap[s]),
+        ...Object.keys(statusMap).filter(s => !ORDER.includes(s))
+    ];
+    const data   = labels.map(s => statusMap[s]);
+    const colors = labels.map(s => statusColour(s));
  
     const chartData = {
         labels,
