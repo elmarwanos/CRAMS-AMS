@@ -79,7 +79,7 @@ class DailySourceChart extends HTMLElement {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Daily Leads by Source',
+                        text: 'Source by Day',
                         color: 'black',
                         font: { weight: 'bold', size: 15 },
                         padding: 10

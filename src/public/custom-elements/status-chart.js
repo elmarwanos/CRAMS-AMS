@@ -73,7 +73,7 @@ class StatusChart extends HTMLElement {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Leads by Status',
+                        text: 'Status Ratio',
                         color: 'black',
                         font: { weight: 'bold', size: 15 },
                         padding: 10

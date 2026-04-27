@@ -556,24 +556,23 @@ function setupTotalModelChart(items, colorMap) {
     const modelMap = {};
     items.forEach(item => {
         const model = item.model;
-        if (!model || model.trim() === '') return;  // skip empty
+        if (!model || model.trim() === '') return;
         modelMap[model] = (modelMap[model] || 0) + 1;
     });
- 
+
     const sorted = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
     const labels = sorted.map(e => e[0]);
     const data   = sorted.map(e => e[1]);
- 
+
     const chartData = {
         labels,
         datasets: [{
-            label:           'Leads',
             data,
             backgroundColor: labels.map(m => colorMap[m] || MODEL_PALETTE[0]),
-            borderWidth:     0,
+            borderWidth: 0,
         }]
     };
- 
+
     // @ts-ignore
     $w('#totalModelChart').setAttribute('data-chart', JSON.stringify(chartData));
 }

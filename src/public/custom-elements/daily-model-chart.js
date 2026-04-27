@@ -65,7 +65,7 @@ class DailyModelChart extends HTMLElement {
                 scales: { x: { stacked: true }, y: { stacked: true } },
                 plugins: {
                     title: {
-                        display: true, text: 'Daily Leads by Model',
+                        display: true, text: 'Model by Day',
                         color: 'black', font: { weight: 'bold', size: 15 }, padding: 10
                     },
                     legend: { position: 'bottom', labels: { color: 'black', font: { size: 10 } } },
