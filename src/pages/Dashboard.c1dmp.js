@@ -407,7 +407,7 @@ const STATUS_COLOURS = {
     'New':       'rgba(159, 66, 122, 0.8)',
     'Contacted': 'rgba(0, 255, 221, 0.8)',
     'Qualified': 'rgba(112, 241, 177, 0.8)',
-    'Lost':      'rgba(68, 70, 165, 0.8)',
+    'Lost':      'rgba(40, 41, 137, 0.8)',
 };
 
 function statusColour(s) {
