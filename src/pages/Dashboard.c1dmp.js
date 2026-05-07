@@ -52,7 +52,7 @@ let editingItem = null; // CMS item currently open in the edit popup
 //  EDIT POPUP — DROPDOWN OPTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Source
+// Source / Channel
 const OPT_SOURCE = [
     { label: '—',                value: '' },
     { label: 'Walk-in',          value: 'Walk-in' },
@@ -145,7 +145,8 @@ const OPT_YES_NO = [
 //  TABLE COLUMN DEFINITIONS
 // ─────────────────────────────────────────────────────────────────────────────
 const SIMPLE_COLUMNS = [
-    { id: 'c1',  dataPath: 'created',         label: 'Created',       type: 'string', width: 120 },
+    { id: 'cid', dataPath: '_id',              label: '',              type: 'string', width: 0   },
+    { id: 'c1',  dataPath: 'created',          label: 'Created',       type: 'string', width: 120 },
     { id: 'c2',  dataPath: 'source',           label: 'Source',        type: 'string', width: 100 },
     { id: 'c3',  dataPath: 'campaign',         label: 'Campaign',      type: 'string', width: 150 },
     { id: 'c4',  dataPath: 'salesExec',        label: 'Sales Exec',    type: 'string', width: 150 },
@@ -158,7 +159,8 @@ const SIMPLE_COLUMNS = [
 ];
 
 const FULL_COLUMNS = [
-    { id: 'c1',  dataPath: 'created',         label: 'Created',       type: 'string', width: 120 },
+    { id: 'cid', dataPath: '_id',              label: '',              type: 'string', width: 0   },
+    { id: 'c1',  dataPath: 'created',          label: 'Created',       type: 'string', width: 120 },
     { id: 'c2',  dataPath: 'source',           label: 'Source',        type: 'string', width: 100 },
     { id: 'c3',  dataPath: 'campaign',         label: 'Campaign',      type: 'string', width: 150 },
     { id: 'c4',  dataPath: 'salesExec',        label: 'Sales Exec',    type: 'string', width: 150 },
@@ -223,6 +225,8 @@ $w.onReady(async function () {
     $w('#endDatePicker').disable();
 
     // 7. Seed popup dropdown options (static — done once)
+    $w("#editPopupBox").hide();
+    $w("#editPopupOverlay").hide();
     initEditPopupDropdowns();
 
     // 8. Wire popup action buttons
@@ -230,11 +234,11 @@ $w.onReady(async function () {
     $w('#editCancelBtn').onClick(() => closeEditPopup());
     $w('#editPopupOverlay').onClick(() => closeEditPopup()); // click overlay to dismiss
 
-    // 9. Row click -> open edit popup
-    //    currentFiltered is always kept in sync with #table1 rows,
-    //    so event.rowIndex maps 1:1 to currentFiltered[rowIndex].
+    // 9. Row click → open edit popup
     $w('#table1').onRowSelect((event) => {
-        const item = currentFiltered[event.rowIndex];
+        const id = event.rowData && event.rowData._id;
+        if (!id) return;
+        const item = allItems.find(i => i._id === id);
         if (item) openEditPopup(item);
     });
 });
@@ -265,6 +269,7 @@ async function loadLeads() {
 function renderTable(items) {
     currentFiltered = items; // keep in sync — onRowSelect depends on this order
     $w('#table1').rows = items.map(item => ({
+        _id:              item._id              || '',
         created:          item.created          || '',
         source:           item.source           || '',
         campaign:         item.campaign         || '',
@@ -330,14 +335,14 @@ $w('#generateCSV').onClick(() => {
     const q = (v) => `"${(v || '').toString().replace(/"/g, '""')}"`;
     currentFiltered.forEach(item => {
         csvContent += [
-            q(item.created),        q(item.source),           q(item.campaign),         q(item.salesExec),
-            q(item.fullName),       q(item.email),            q(item.phone),            q(item.preferredChannel),
-            q(item.preferredTime),  q(item.model),            q(item.modelDetails),     q(item.branch),
-            q(item.strength),       q(item.status),           q(item.quotationIssued),  q(item.remarks),
-            q(item.followUp1),      q(item.reply1),           q(item.followUp2),        q(item.reply2),
-            q(item.followUp3),      q(item.reply3),           q(item.lostSaleReason),   q(item.lostSaleRemarks),
-            q(item.notes),          q(item.month),            q(item.day),              q(item.qty),
-            q(item.amtWithVat),     q(item.amtWithoutVat),
+            q(item.created),    q(item.source),           q(item.campaign),    q(item.salesExec),
+            q(item.fullName),   q(item.email),            q(item.phone),       q(item.preferredChannel),
+            q(item.preferredTime), q(item.model),         q(item.modelDetails),q(item.branch),
+            q(item.strength),   q(item.status),           q(item.quotationIssued), q(item.remarks),
+            q(item.followUp1),  q(item.reply1),           q(item.followUp2),   q(item.reply2),
+            q(item.followUp3),  q(item.reply3),           q(item.lostSaleReason), q(item.lostSaleRemarks),
+            q(item.notes),      q(item.month),            q(item.day),         q(item.qty),
+            q(item.amtWithVat), q(item.amtWithoutVat),
         ].join(',') + '\n';
     });
 
@@ -521,6 +526,7 @@ function initEditPopupDropdowns() {
 //  Always shows ALL fields regardless of table view mode (simple or expanded).
 // ─────────────────────────────────────────────────────────────────────────────
 function openEditPopup(item) {
+    console.log('Opening edit popup for item:', item);
     editingItem = item;
 
     $w('#editLeadName').text = `Editing: ${item.fullName || 'Unknown'}`;
@@ -562,14 +568,14 @@ function openEditPopup(item) {
     $w('#editQuotationIssued').value  = item.quotationIssued  || '';
 
     $w('#editPopupOverlay').show();
-    $w('#editPopupBox').show();
+    $w('#editPopupBox').show("slide", { direction: "right", duration: 600});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  EDIT POPUP — CLOSE
 // ─────────────────────────────────────────────────────────────────────────────
 function closeEditPopup() {
-    $w('#editPopupBox').hide();
+    $w('#editPopupBox').hide("slide", { direction: "right", duration: 600});
     $w('#editPopupOverlay').hide();
     editingItem = null;
 }
