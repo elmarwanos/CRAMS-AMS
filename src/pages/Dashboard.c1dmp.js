@@ -26,6 +26,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { verifyCookie } from 'backend/login-verification.web.js';
+import { updateLead } from 'backend/leads.web.js';
 import { session as storage } from 'wix-storage';
 import { to } from 'wix-location';
 import wixData from 'wix-data';
@@ -507,7 +508,6 @@ function enableAllDateBtns() {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 //  EDIT POPUP — INIT DROPDOWNS
-//  Run once on $w.onReady. Sets static option arrays on all popup dropdowns.
 // ─────────────────────────────────────────────────────────────────────────────
 function initEditPopupDropdowns() {
     $w('#editSource').options           = OPT_SOURCE;
@@ -521,12 +521,20 @@ function initEditPopupDropdowns() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  EDIT POPUP — DROPDOWN HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+function setDropdown(elementId, rawValue) {
+    if (!rawValue) { $w(elementId).value = ''; return; }
+    const el = $w(elementId);    
+    const normalize = s => s.trim().replace(/_/g, ' ').toLowerCase();
+    const match = el.options.find(o => normalize(o.value) === normalize(rawValue));
+    el.value = match ? match.value : '';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  EDIT POPUP — OPEN
-//  Dynamically populates every field from the selected row's live CMS data.
-//  Always shows ALL fields regardless of table view mode (simple or expanded).
 // ─────────────────────────────────────────────────────────────────────────────
 function openEditPopup(item) {
-    console.log('Opening edit popup for item:', item);
     editingItem = item;
 
     $w('#editLeadName').text = `Editing: ${item.fullName || 'Unknown'}`;
@@ -547,8 +555,8 @@ function openEditPopup(item) {
     $w('#editReply3').value         = item.reply3        || '';
     $w('#editLostSaleReason').value = item.lostSaleReason || '';
     $w('#editMonth').value          = item.month         || '';
-    $w('#editQty').value            = item.qty        != null ? String(item.qty)           : '';
-    $w('#editAmtWithVat').value     = item.amtWithVat != null ? String(item.amtWithVat)    : '';
+    $w('#editQty').value            = item.qty        != null ? String(item.qty)              : '';
+    $w('#editAmtWithVat').value     = item.amtWithVat != null ? String(item.amtWithVat)       : '';
     $w('#editAmtWithoutVat').value  = item.amtWithoutVat != null ? String(item.amtWithoutVat) : '';
 
     // ── Multiline TextBoxes ──────────────────────────────────────────────────
@@ -556,16 +564,15 @@ function openEditPopup(item) {
     $w('#editLostSaleRemarks').value = item.lostSaleRemarks || '';
     $w('#editNotes').value           = item.notes           || '';
 
-    // ── Dropdowns ────────────────────────────────────────────────────────────
-    // If item.value isn't in the options list Wix shows the placeholder — no error.
-    $w('#editSource').value           = item.source           || '';
-    $w('#editStrength').value         = item.strength         || '';
-    $w('#editStatus').value           = item.status           || '';
-    $w('#editBranch').value           = item.branch           || '';
-    $w('#editModel').value            = item.model            || '';
-    $w('#editPreferredChannel').value = item.preferredChannel || '';
-    $w('#editPreferredTime').value    = item.preferredTime    || '';
-    $w('#editQuotationIssued').value  = item.quotationIssued  || '';
+    // ── Dropdowns — via setDropdown() for case-insensitive matching ──────────
+    setDropdown('#editSource',           item.source);
+    setDropdown('#editStrength',         item.strength);
+    setDropdown('#editStatus',           item.status);
+    setDropdown('#editBranch',           item.branch);
+    setDropdown('#editModel',            item.model);
+    setDropdown('#editPreferredChannel', item.preferredChannel);
+    setDropdown('#editPreferredTime',    item.preferredTime);
+    setDropdown('#editQuotationIssued',  item.quotationIssued);
 
     $w('#editPopupOverlay').show();
     $w('#editPopupBox').show("slide", { direction: "right", duration: 600});
@@ -578,16 +585,14 @@ function closeEditPopup() {
     $w('#editPopupBox').hide("slide", { direction: "right", duration: 600});
     $w('#editPopupOverlay').hide();
     editingItem = null;
+    $w('#editSaveBtn').enable(); // always re-enable so next open is ready
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  EDIT POPUP — SAVE
-//  Spreads the original item (preserving _id, leadgenId, _owner, etc.),
-//  overwrites all editable fields, calls wixData.update(), then patches
-//  allItems in-memory and re-runs applyFilters() so the table reflects the
-//  change immediately — no full reload needed.
 // ─────────────────────────────────────────────────────────────────────────────
 async function saveEdit() {
+    console.log('[saveEdit] called. editingItem:', editingItem ? editingItem._id : 'NULL');
     if (!editingItem) return;
 
     $w('#editSaveBtn').disable();
@@ -626,12 +631,24 @@ async function saveEdit() {
         amtWithoutVat:    parseFloat($w('#editAmtWithoutVat').value) || 0,
     };
 
+    console.log('[saveEdit] updatedItem built. _id:', updatedItem._id);
+    console.log('[saveEdit] calling backend updateLead');
+
+    const username    = storage.getItem('crams_username');
+    const sessionHash = storage.getItem('crams_session_hash');
+
     try {
-        const saved = await wixData.update(COLLECTION, updatedItem, { suppressAuth: true });
+        const result = await updateLead(username, sessionHash, updatedItem);
+        console.log('[saveEdit] updateLead result:', result);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error from backend');
+        }
 
         // Patch in-memory so re-renders are instant — no extra CMS query needed
-        const idx = allItems.findIndex(i => i._id === saved._id);
-        if (idx !== -1) allItems[idx] = saved;
+        const idx = allItems.findIndex(i => i._id === result.item._id);
+        console.log('[saveEdit] patching allItems at index:', idx);
+        if (idx !== -1) allItems[idx] = result.item;
 
         applyFilters(); // re-render table + charts with updated data
 
@@ -639,7 +656,8 @@ async function saveEdit() {
         setTimeout(() => closeEditPopup(), 700);
 
     } catch (err) {
-        console.error('saveEdit failed:', err);
+        console.error('[saveEdit] updateLead FAILED:', err);
+        console.error('[saveEdit] error message:', err.message);
         $w('#editSaveTxt').text = '✗ Save failed — try again';
         $w('#editSaveBtn').enable();
     }
@@ -669,24 +687,21 @@ async function saveEdit() {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 const SOURCE_COLOURS = {
-    'instagram':    'rgba(219, 44, 143, 0.8)',
-    'facebook':     'rgba(24, 119, 242, 0.8)',
-    'meta lead ad': 'rgba(0, 0, 0, 0.3)',
+    'instagram':             'rgba(219, 44, 143, 0.8)',
+    'facebook':              'rgba(24, 119, 242, 0.8)',
+    'meta lead ad':          'rgba(0, 0, 0, 0.3)',
 };
 function sourceColour(src) {
     return SOURCE_COLOURS[(src || '').toLowerCase()] || 'rgba(150, 150, 150, 0.80)';
 }
 
 const STATUS_COLOURS = {
-    'Waiting to be contacted':  'rgba(200, 200, 200, 0.8)',
-    'Attempted to contact':     'rgba(255, 200,  80, 0.8)',
-    'Contacted & In progress':  'rgba(  0, 200, 255, 0.8)',
-    'Qualified & In progress':  'rgba(112, 241, 177, 0.8)',
-    'Not Qualified':            'rgba(180,  80,  80, 0.8)',
-    'Booked':                   'rgba(100, 180,  80, 0.8)',
-    'Invoiced':                 'rgba( 40, 160,  40, 0.8)',
-    'Lost Sale':                'rgba( 40,  41, 137, 0.8)',
+    'New':       'rgba(159, 66, 122, 0.8)',
+    'Contacted': 'rgba(0, 255, 221, 0.8)',
+    'Qualified': 'rgba(112, 241, 177, 0.8)',
+    'Lost':      'rgba(40, 41, 137, 0.8)',
 };
+
 function statusColour(s) {
     return STATUS_COLOURS[s] || 'rgba(150, 150, 150, 0.80)';
 }
@@ -695,16 +710,8 @@ const MODEL_PALETTE = [
     'rgba(100,  80, 180, 0.80)',
     'rgba(  0, 180, 180, 0.80)',
     'rgba(0, 147, 246, 0.8)',
-    'rgba(255, 140,  0, 0.8)',
-    'rgba(220,  50, 50, 0.8)',
-    'rgba( 80, 200, 120, 0.8)',
-    'rgba(160,  80, 200, 0.8)',
-    'rgba( 20, 100, 180, 0.8)',
-    'rgba(200, 180,  40, 0.8)',
-    'rgba(100, 140, 200, 0.8)',
-    'rgba(220, 100, 160, 0.8)',
 ];
-
+ 
 const BRANCH_PALETTE = [
     'rgb(209, 52, 54)',
     'rgba(72, 152, 222, 0.8)',
@@ -715,19 +722,21 @@ const BRANCH_PALETTE = [
 
 function buildColorMap(names, palette) {
     const map = {};
-    names.forEach((name, i) => { map[name] = palette[i % palette.length]; });
+    names.forEach((name, i) => {
+        map[name] = palette[i % palette.length];
+    });
     return map;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  CHARTS
-// ─────────────────────────────────────────────────────────────────────────────
+// ------------------- COLORS DONE ------------------- 
+
 function setupCharts(items) {
+    // Build shared color maps so paired charts use identical colors
     const allModels   = [...new Set(items.map(i => i.model).filter(Boolean))];
     const allBranches = [...new Set(items.map(i => i.branch).filter(Boolean))];
     const modelColorMap  = buildColorMap(allModels,   MODEL_PALETTE);
     const branchColorMap = buildColorMap(allBranches, BRANCH_PALETTE);
-
+ 
     setupDailySourceChart(items);
     setupDailyModelChart(items, modelColorMap);
     setupDailyBranchChart(items, branchColorMap);
@@ -736,70 +745,114 @@ function setupCharts(items) {
     setupTotalStatusChart(items);
 }
 
+// Shared helper
 function groupByDateAndField(items, fieldKey) {
     const dateMap = {};
+    let skippedNoCreated = 0, skippedNoValue = 0, skippedBadDate = 0;
+
     items.forEach(item => {
-        if (!item.created) return;
+        if (!item.created) { skippedNoCreated++; return; }
         const value = item[fieldKey];
-        if (!value || value.trim() === '') return;
-        const dateKey = new Date(item.created).toLocaleDateString('en-GB', {
+        if (!value || value.trim() === '') { skippedNoValue++; return; }
+
+        const parsed = new Date(item.created);
+        if (isNaN(parsed.getTime())) { skippedBadDate++; return; }
+
+        const dateKey = parsed.toLocaleDateString('en-GB', {
             day: 'numeric', month: 'short'
         });
+
         if (!dateMap[dateKey]) dateMap[dateKey] = {};
         dateMap[dateKey][value] = (dateMap[dateKey][value] || 0) + 1;
     });
+
+    console.log(`[groupByDateAndField:${fieldKey}] skippedNoCreated:${skippedNoCreated} skippedNoValue:${skippedNoValue} skippedBadDate:${skippedBadDate} | sample created:`, items[0]?.created);
+
     const labels     = Object.keys(dateMap).reverse();
-    const categories = [...new Set(Object.values(dateMap).flatMap(d => Object.keys(d)))];
+    const categories = [...new Set(
+        Object.values(dateMap).flatMap(d => Object.keys(d))
+    )];
+
     return { labels, categories, dateMap };
 }
 
+
+// ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
 function setupDailySourceChart(items) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'source');
+    console.log('[dailySourceChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
+
     const datasets = categories.map(cat => ({
-        label: cat, data: labels.map(d => dateMap[d]?.[cat] || 0),
-        backgroundColor: sourceColour(cat), borderColor: sourceColour(cat), borderWidth: 0,
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
+        backgroundColor: sourceColour(cat),
+        borderColor:     sourceColour(cat),
+        borderWidth:     0,
     }));
+
     // @ts-ignore
     $w('#dailySourceChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
 }
 
+
+// ─── CHART 2: Daily Leads by Model ────────────────────────────────────────────────
 function setupDailyModelChart(items, colorMap) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'model');
+    console.log('[dailyModelChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
+
     const datasets = categories.map(cat => ({
-        label: cat, data: labels.map(d => dateMap[d]?.[cat] || 0),
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
         backgroundColor: colorMap[cat] || MODEL_PALETTE[0],
-        borderColor:     colorMap[cat] || MODEL_PALETTE[0], borderWidth: 0,
+        borderColor:     colorMap[cat] || MODEL_PALETTE[0],
+        borderWidth:     0,
     }));
+
     // @ts-ignore
     $w('#dailyModelChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
 }
 
+// ─── CHART 3: Daily Leads by Branch ────────────────────────────────────────────────
 function setupDailyBranchChart(items, colorMap) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'branch');
+    console.log('[dailyBranchChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
+
     const datasets = categories.map(cat => ({
-        label: cat, data: labels.map(d => dateMap[d]?.[cat] || 0),
+        label:           cat,
+        data:            labels.map(d => dateMap[d]?.[cat] || 0),
         backgroundColor: colorMap[cat] || BRANCH_PALETTE[0],
-        borderColor:     colorMap[cat] || BRANCH_PALETTE[0], borderWidth: 0,
+        borderColor:     colorMap[cat] || BRANCH_PALETTE[0],
+        borderWidth:     0,
     }));
+
     // @ts-ignore
     $w('#dailyBranchChart').setAttribute('data-chart', JSON.stringify({ labels, datasets }));
 }
 
+// ─── CHART 4: Total Leads by Source ────────────────────────────────────────────────
 function setupTotalSourceChart(items) {
     const sourceMap = {};
     items.forEach(item => {
         const src = item.source;
-        if (!src || src.trim() === '') return;
+        if (!src || src.trim() === '') return;  // skip empty
         sourceMap[src] = (sourceMap[src] || 0) + 1;
     });
-    const sorted    = Object.entries(sourceMap).sort((a, b) => b[1] - a[1]);
-    const labels    = sorted.map(e => e[0]);
-    const data      = sorted.map(e => e[1]);
-    const chartData = { labels, datasets: [{ data, backgroundColor: labels.map(s => sourceColour(s)), borderWidth: 0 }] };
+ 
+    const sorted = Object.entries(sourceMap).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(e => e[0]);
+    const data   = sorted.map(e => e[1]);
+    const colors = labels.map(src => sourceColour(src));
+ 
+    const chartData = {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+    };
+ 
     // @ts-ignore
     $w('#totalSourceChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
-
+ 
+// ─── CHART 5: Total Leads by Model ────────────────────────────────────────────────
 function setupTotalModelChart(items, colorMap) {
     const modelMap = {};
     items.forEach(item => {
@@ -807,28 +860,49 @@ function setupTotalModelChart(items, colorMap) {
         if (!model || model.trim() === '') return;
         modelMap[model] = (modelMap[model] || 0) + 1;
     });
-    const sorted    = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
-    const labels    = sorted.map(e => e[0]);
-    const data      = sorted.map(e => e[1]);
-    const chartData = { labels, datasets: [{ data, backgroundColor: labels.map(m => colorMap[m] || MODEL_PALETTE[0]), borderWidth: 0 }] };
+
+    const sorted = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(e => e[0]);
+    const data   = sorted.map(e => e[1]);
+
+    const chartData = {
+        labels,
+        datasets: [{
+            data,
+            backgroundColor: labels.map(m => colorMap[m] || MODEL_PALETTE[0]),
+            borderWidth: 0,
+        }]
+    };
+
     // @ts-ignore
     $w('#totalModelChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
-
+ 
+ 
+// ─── CHART 6: Total Leads by Status ────────────────────────────────────────────────
 function setupTotalStatusChart(items) {
-    // Render in meaningful pipeline order, any unknown statuses appended at end
-    const ORDER = ['Waiting to be contacted', 'Attempted to contact', 'Contacted & In progress',
-                   'Qualified & In progress', 'Not Qualified', 'Booked', 'Invoiced', 'Lost Sale'];
+    const ORDER = ['New', 'Contacted', 'Qualified', 'Lost'];
+ 
     const statusMap = {};
     items.forEach(item => {
         const s = item.status;
-        if (!s || s.trim() === '') return;
+        if (!s || s.trim() === '') return;  // skip empty
         statusMap[s] = (statusMap[s] || 0) + 1;
     });
-    const labels    = [...ORDER.filter(s => statusMap[s]), ...Object.keys(statusMap).filter(s => !ORDER.includes(s))];
-    const data      = labels.map(s => statusMap[s]);
-    const colors    = labels.map(s => statusColour(s));
-    const chartData = { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] };
+ 
+    // Known statuses in order first, then any extras
+    const labels = [
+        ...ORDER.filter(s => statusMap[s]),
+        ...Object.keys(statusMap).filter(s => !ORDER.includes(s))
+    ];
+    const data   = labels.map(s => statusMap[s]);
+    const colors = labels.map(s => statusColour(s));
+ 
+    const chartData = {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+    };
+ 
     // @ts-ignore
     $w('#totalStatusChart').setAttribute('data-chart', JSON.stringify(chartData));
 }

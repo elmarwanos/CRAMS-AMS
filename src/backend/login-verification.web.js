@@ -110,3 +110,4 @@ export const verifyCookie = webMethod(Permissions.Anyone, function (username, se
     }
     return response({ status: 401 });
 });
+

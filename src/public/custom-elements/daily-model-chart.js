@@ -30,25 +30,25 @@ class DailyModelChart extends HTMLElement {
             s.src = src; s.onload = cb;
             document.head.appendChild(s);
         };
+        const tryRender = () => {
+            if (this.hasAttribute('data-chart'))
+                this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+        };
+
         if (!window.Chart) {
             loadScript('https://cdn.jsdelivr.net/npm/chart.js', () =>
                 loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels', () =>
-                    loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', () => {
-                        if (this.hasAttribute('data-chart'))
-                            this.renderChart(JSON.parse(this.getAttribute('data-chart')));
-                    })
+                    loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', tryRender)
                 )
             );
         } else if (!window.ChartDataLabels) {
             loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels', () =>
-                loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', () => {
-                    if (this.hasAttribute('data-chart'))
-                        this.renderChart(JSON.parse(this.getAttribute('data-chart')));
-                })
+                loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', tryRender)
             );
+        } else if (!window.ChartZoom) {
+            loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom', tryRender);
         } else {
-            if (this.hasAttribute('data-chart'))
-                this.renderChart(JSON.parse(this.getAttribute('data-chart')));
+            tryRender();
         }
     }
 
@@ -79,7 +79,7 @@ class DailyModelChart extends HTMLElement {
                     }
                 }
             },
-            plugins: [window.ChartDataLabels, window.ChartZoom]
+            plugins: [window.ChartDataLabels, window.ChartZoom].filter(Boolean)
         });
     }
 }
