@@ -117,6 +117,18 @@ const OPT_MODEL = [
     { label: 'IMC-MID SIZE',     value: 'IMC-MID SIZE' },
 ];
 
+// Sales Exec
+const OPT_SALES_EXEC = [
+    { label: '—',                  value: '' },
+    { label: 'Samsheer (Dubai)',   value: 'Samsheer (Dubai)' },
+    { label: 'Cole (Dubai)',       value: 'Cole (Dubai)' },
+    { label: 'Rifaz (Dubai)',      value: 'Rifaz (Dubai)' },
+    { label: 'Nasik (Abu Dhabi)',  value: 'Nasik (Abu Dhabi)' },
+    { label: 'Harsh (Abu Dhabi)',  value: 'Harsh (Abu Dhabi)' },
+    { label: 'Hussain (Alain)',    value: 'Hussain (Alain)' },
+    { label: 'Nadeem (Alain)',     value: 'Nadeem (Alain)' },
+];
+
 // Preferred Channel
 const OPT_CHANNEL = [
     { label: '—',          value: '' },
@@ -515,6 +527,7 @@ function initEditPopupDropdowns() {
     $w('#editStatus').options           = OPT_STATUS;
     $w('#editBranch').options           = OPT_BRANCH;
     $w('#editModel').options            = OPT_MODEL;
+    $w('#editSalesExec').options        = OPT_SALES_EXEC;
     $w('#editPreferredChannel').options = OPT_CHANNEL;
     $w('#editPreferredTime').options    = OPT_TIME;
     $w('#editQuotationIssued').options  = OPT_YES_NO;
@@ -545,7 +558,6 @@ function openEditPopup(item) {
     $w('#editPhone').value          = item.phone         || '';
     $w('#editEmail').value          = item.email         || '';
     $w('#editCampaign').value       = item.campaign      || '';
-    $w('#editSalesExec').value      = item.salesExec     || '';
     $w('#editModelDetails').value   = item.modelDetails  || '';
     $w('#editFollowUp1').value      = item.followUp1     || '';
     $w('#editReply1').value         = item.reply1        || '';
@@ -566,6 +578,7 @@ function openEditPopup(item) {
 
     // ── Dropdowns — via setDropdown() for case-insensitive matching ──────────
     setDropdown('#editSource',           item.source);
+    setDropdown('#editSalesExec',        item.salesExec);
     setDropdown('#editStrength',         item.strength);
     setDropdown('#editStatus',           item.status);
     setDropdown('#editBranch',           item.branch);
