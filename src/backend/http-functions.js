@@ -63,6 +63,7 @@ import wixData from 'wix-data';
 const META_GRAPH_VERSION = 'v19.0';
 
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  GET /_functions/metaWebhook
 //
@@ -167,7 +168,7 @@ export async function post_metaWebhook(request) {
                                 continue;
                             }
 
-                            const { leadgen_id, page_id, form_id, ad_id, created_time } = change.value;
+                            const { leadgen_id, page_id, form_id, ad_id, ad_name: webhookAdName, created_time } = change.value;
                             console.log(`POST Meta Webhook: received leadgen_id: ${leadgen_id}`);
 
                             // 1. Fetch full lead details from Meta Graph API
@@ -202,7 +203,7 @@ export async function post_metaWebhook(request) {
 
                                 // From Meta form (required) ─────────────────
                                 source: detectSource(leadData),
-                                campaign: detectCampaign(leadData),
+                                campaign: detectCampaign(leadData, webhookAdName),
                                 created: createdStr,
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
                                 phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
@@ -211,10 +212,10 @@ export async function post_metaWebhook(request) {
                                 // From Meta form (optional) ─────────────────
                                 strength: parsedFields['strength'] || '',
                                 salesExec: parsedFields['sales_exec'] || parsedFields['sales_executive'] || '',
-                                branch: parsedFields['what_showroom_you_would_like_to_visit?'] || parsedFields['branch'] || parsedFields['dealer_location'] || '',
-                                preferredChannel: parsedFields['what_is_your_preferred_mode_of_contact?'] || parsedFields['preferred_channel'] || parsedFields['contact_method'] || '',
-                                preferredTime: parsedFields['preferred_time_to_contact_you?'] || parsedFields['preferred_time'] || parsedFields['best_time'] || '',
-                                model: parsedFields['vehicle_model'] || parsedFields['model'] || '',
+                                branch: normalizeBranch(parsedFields['which_branch_would_you_like_to_visit'] || parsedFields['what_showroom_you_would_like_to_visit?'] || parsedFields['branch'] || parsedFields['dealer_location'] || ''),
+                                preferredChannel: normalizeChannel(parsedFields['how_to_contact_you'] || parsedFields['what_is_your_preferred_mode_of_contact?'] || parsedFields['preferred_channel'] || parsedFields['contact_method'] || ''),
+                                preferredTime: normalizeTime(parsedFields['suggested_time_to_contact_you'] || parsedFields['preferred_time_to_contact_you?'] || parsedFields['preferred_time'] || parsedFields['best_time'] || ''),
+                                model: normalizeModel(parsedFields['vehicle_model'] || parsedFields['model'] || parsedFields['which_model_are_you_interested_in?'] || ''),
                                 modelDetails: parsedFields['model_details'] || parsedFields['variant'] || '',
                                 remarks: parsedFields['remarks'] || parsedFields['comment'] || '',
                                 followUp1: parsedFields['follow_up_1'] || parsedFields['follow_up'] || '',
@@ -340,9 +341,73 @@ function detectSource(leadData) {
     return 'Meta Lead Ad';
 }
 
-function detectCampaign(leadData) {
-    // ad_name is the ad name set in Ads Manager — most human readable
-    return leadData.ad_name || '';
+function detectCampaign(leadData, webhookAdName) {
+    // webhookAdName comes directly from the webhook payload (most reliable)
+    // leadData.ad_name is from the Graph API fetch (sometimes missing)
+    return webhookAdName || leadData.ad_name || '';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Normalization helpers — map Meta's raw form values to the CMS standard values
+//  so the dashboard dropdowns always display correctly.
+// ─────────────────────────────────────────────────────────────────────────────
+function normalizeChannel(raw) {
+    const map = {
+        'whatsapp':   'Whatsapp',
+        'phone_call': 'Call',
+        'call':       'Call',
+        'phone':      'Call',
+        'email':      'Email',
+        'in_person':  'In Person',
+        'in person':  'In Person',
+    };
+    return map[(raw || '').toLowerCase().trim()] || raw || '';
+}
+
+function normalizeTime(raw) {
+    const cleaned = (raw || '').toLowerCase().trim().replace(/_+$/, ''); // strip trailing underscores
+    const map = {
+        'morning':   'Morning',
+        'afternoon': 'Afternoon',
+        'evening':   'Evening',
+        'anytime':   'Anytime',
+    };
+    return map[cleaned] || raw || '';
+}
+
+function normalizeBranch(raw) {
+    const map = {
+        'abu_dhabi':  'Abu Dhabi',
+        'abu dhabi':  'Abu Dhabi',
+        'abudhabi':   'Abu Dhabi',
+        'al_ain':     'Alain',
+        'al ain':     'Alain',
+        'alain':      'Alain',
+        'dubai':      'Dubai',
+        'sharjah':    'Sharjah',
+        'other':      'Other',
+    };
+    return map[(raw || '').toLowerCase().trim()] || raw || '';
+}
+
+function normalizeModel(raw) {
+    const map = {
+        'rzr':              'RZR',
+        'ranger':           'RANGER/GENERAL',
+        'general':          'RANGER/GENERAL',
+        'ranger/general':   'RANGER/GENERAL',
+        'xpedition':        'XPEDITION',
+        'atv':              'ATV',
+        'youth':            'YOUTH',
+        'goupil':           'GOUPIL',
+        'sherco':           'SHERCO',
+        'slingshot':        'SLINGSHOT',
+        'imc-heavy weight': 'IMC-HEAVY WEIGHT',
+        'imc heavy weight': 'IMC-HEAVY WEIGHT',
+        'imc-mid size':     'IMC-MID SIZE',
+        'imc mid size':     'IMC-MID SIZE',
+    };
+    return map[(raw || '').toLowerCase().trim()] || raw || '';
 }
 
 
