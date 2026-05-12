@@ -696,10 +696,14 @@ function sourceColour(src) {
 }
 
 const STATUS_COLOURS = {
-    'New':       'rgba(159, 66, 122, 0.8)',
-    'Contacted': 'rgba(0, 255, 221, 0.8)',
-    'Qualified': 'rgba(112, 241, 177, 0.8)',
-    'Lost':      'rgba(40, 41, 137, 0.8)',
+    'Waiting to be contacted': 'rgba(159, 66, 122, 0.8)',
+    'Attempted to contact':    'rgba(200, 100, 180, 0.8)',
+    'Contacted & In progress': 'rgba(0, 200, 210, 0.8)',
+    'Qualified & In progress': 'rgba(112, 241, 177, 0.8)',
+    'Not Qualified':           'rgba(180, 180, 60, 0.8)',
+    'Booked':                  'rgba(0, 180, 100, 0.8)',
+    'Invoiced':                'rgba(0, 120, 60, 0.8)',
+    'Lost Sale':               'rgba(40, 41, 137, 0.8)',
 };
 
 function statusColour(s) {
@@ -748,15 +752,14 @@ function setupCharts(items) {
 // Shared helper
 function groupByDateAndField(items, fieldKey) {
     const dateMap = {};
-    let skippedNoCreated = 0, skippedNoValue = 0, skippedBadDate = 0;
 
     items.forEach(item => {
-        if (!item.created) { skippedNoCreated++; return; }
+        if (!item.created) return;
         const value = item[fieldKey];
-        if (!value || value.trim() === '') { skippedNoValue++; return; }
+        if (!value || value.trim() === '') return;
 
         const parsed = new Date(item.created);
-        if (isNaN(parsed.getTime())) { skippedBadDate++; return; }
+        if (isNaN(parsed.getTime())) return;
 
         const dateKey = parsed.toLocaleDateString('en-GB', {
             day: 'numeric', month: 'short'
@@ -765,8 +768,6 @@ function groupByDateAndField(items, fieldKey) {
         if (!dateMap[dateKey]) dateMap[dateKey] = {};
         dateMap[dateKey][value] = (dateMap[dateKey][value] || 0) + 1;
     });
-
-    console.log(`[groupByDateAndField:${fieldKey}] skippedNoCreated:${skippedNoCreated} skippedNoValue:${skippedNoValue} skippedBadDate:${skippedBadDate} | sample created:`, items[0]?.created);
 
     const labels     = Object.keys(dateMap).reverse();
     const categories = [...new Set(
@@ -780,7 +781,6 @@ function groupByDateAndField(items, fieldKey) {
 // ─── CHART 1: Daily Leads by Source ─────────────────────────────────────────
 function setupDailySourceChart(items) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'source');
-    console.log('[dailySourceChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
 
     const datasets = categories.map(cat => ({
         label:           cat,
@@ -798,7 +798,6 @@ function setupDailySourceChart(items) {
 // ─── CHART 2: Daily Leads by Model ────────────────────────────────────────────────
 function setupDailyModelChart(items, colorMap) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'model');
-    console.log('[dailyModelChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
 
     const datasets = categories.map(cat => ({
         label:           cat,
@@ -815,7 +814,6 @@ function setupDailyModelChart(items, colorMap) {
 // ─── CHART 3: Daily Leads by Branch ────────────────────────────────────────────────
 function setupDailyBranchChart(items, colorMap) {
     const { labels, categories, dateMap } = groupByDateAndField(items, 'branch');
-    console.log('[dailyBranchChart] items count:', items.length, '| labels:', labels, '| categories:', categories);
 
     const datasets = categories.map(cat => ({
         label:           cat,
@@ -881,7 +879,16 @@ function setupTotalModelChart(items, colorMap) {
  
 // ─── CHART 6: Total Leads by Status ────────────────────────────────────────────────
 function setupTotalStatusChart(items) {
-    const ORDER = ['New', 'Contacted', 'Qualified', 'Lost'];
+    const ORDER = [
+        'Waiting to be contacted',
+        'Attempted to contact',
+        'Contacted & In progress',
+        'Qualified & In progress',
+        'Not Qualified',
+        'Booked',
+        'Invoiced',
+        'Lost Sale',
+    ];
  
     const statusMap = {};
     items.forEach(item => {
