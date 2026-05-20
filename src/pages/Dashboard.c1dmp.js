@@ -161,7 +161,7 @@ const SIMPLE_COLUMNS = [
     { id: 'cid', dataPath: '_id',              label: '',              type: 'string', width: 0   },
     { id: 'c1',  dataPath: 'created',          label: 'Created',       type: 'string', width: 120 },
     { id: 'c2',  dataPath: 'source',           label: 'Source',        type: 'string', width: 100 },
-    { id: 'c3',  dataPath: 'campaign',         label: 'Campaign',      type: 'string', width: 150 },
+    { id: 'c3',  dataPath: 'status',           label: 'Status',        type: 'string', width: 150 },
     { id: 'c4',  dataPath: 'salesExec',        label: 'Sales Exec',    type: 'string', width: 150 },
     { id: 'c5',  dataPath: 'fullName',         label: 'Name',          type: 'string', width: 100 },
     { id: 'c6',  dataPath: 'email',            label: 'Email',         type: 'string', width: 200 },
@@ -708,6 +708,20 @@ function sourceColour(src) {
     return SOURCE_COLOURS[(src || '').toLowerCase()] || 'rgba(150, 150, 150, 0.80)';
 }
 
+const CHANNEL_COLOURS = {
+    'Whatsapp':  'rgba(37, 211, 102, 0.85)',
+    'Call':      'rgba(0, 120, 215, 0.85)',
+    'Email':     'rgba(230, 120, 20, 0.85)',
+    'In Person': 'rgba(130, 60, 180, 0.85)',
+};
+
+const TIME_COLOURS = {
+    'Morning':   'rgba(255, 190, 30, 0.85)',
+    'Afternoon': 'rgba(230, 120, 20, 0.85)',
+    'Evening':   'rgba(80, 60, 160, 0.85)',
+    'Anytime':   'rgba(0, 180, 160, 0.85)',
+};
+
 const STATUS_COLOURS = {
     'Waiting to be contacted': 'rgba(159, 66, 122, 0.8)',
     'Attempted to contact':    'rgba(200, 100, 180, 0.8)',
@@ -760,6 +774,8 @@ function setupCharts(items) {
     setupTotalSourceChart(items);
     setupTotalModelChart(items, modelColorMap);
     setupTotalStatusChart(items);
+    setupPrefChannelChart(items);
+    setupPrefTimeChart(items);
 }
 
 // Shared helper
@@ -925,4 +941,56 @@ function setupTotalStatusChart(items) {
  
     // @ts-ignore
     $w('#totalStatusChart').setAttribute('data-chart', JSON.stringify(chartData));
+}
+
+
+// ─── CHART 7: Preferred Channel Ratio ────────────────────────────────────────
+function setupPrefChannelChart(items) {
+    const ORDER = ['Whatsapp', 'Call', 'Email', 'In Person'];
+
+    const channelMap = {};
+    items.forEach(item => {
+        const c = item.preferredChannel;
+        if (!c || c.trim() === '') return;
+        channelMap[c] = (channelMap[c] || 0) + 1;
+    });
+
+    const labels = [
+        ...ORDER.filter(c => channelMap[c]),
+        ...Object.keys(channelMap).filter(c => !ORDER.includes(c))
+    ];
+    const data   = labels.map(c => channelMap[c]);
+    const colors = labels.map(c => CHANNEL_COLOURS[c] || 'rgba(150, 150, 150, 0.8)');
+
+    // @ts-ignore
+    $w('#prefChannelChart').setAttribute('data-chart', JSON.stringify({
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+    }));
+}
+
+
+// ─── CHART 8: Preferred Time Ratio ───────────────────────────────────────────
+function setupPrefTimeChart(items) {
+    const ORDER = ['Morning', 'Afternoon', 'Evening', 'Anytime'];
+
+    const timeMap = {};
+    items.forEach(item => {
+        const t = item.preferredTime;
+        if (!t || t.trim() === '') return;
+        timeMap[t] = (timeMap[t] || 0) + 1;
+    });
+
+    const labels = [
+        ...ORDER.filter(t => timeMap[t]),
+        ...Object.keys(timeMap).filter(t => !ORDER.includes(t))
+    ];
+    const data   = labels.map(t => timeMap[t]);
+    const colors = labels.map(t => TIME_COLOURS[t] || 'rgba(150, 150, 150, 0.8)');
+
+    // @ts-ignore
+    $w('#prefTimeChart').setAttribute('data-chart', JSON.stringify({
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0 }]
+    }));
 }

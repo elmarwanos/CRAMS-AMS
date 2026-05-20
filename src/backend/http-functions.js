@@ -224,7 +224,7 @@ export async function post_metaWebhook(request) {
                                 reply2: parsedFields['reply_2'] || '',
                                 followUp3: parsedFields['follow_up_3'] || '',
                                 reply3: parsedFields['reply_3'] || '',
-                                status: parsedFields['status'] || 'New',
+                                status: parsedFields['status'] || 'Waiting to be contacted',
                                 quotationIssued: parsedFields['quotation_issued'] || '',
                                 lostSaleReason: parsedFields['lost_sale_reason'] || '',
                                 lostSaleRemarks: parsedFields['lost_sale_remarks'] || '',
