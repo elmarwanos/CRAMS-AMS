@@ -2,10 +2,10 @@
 //  CRAMS - AMS - Welcome / Login
 //
 //  Required elements on the Welcome page in Wix Studio:
-//    #usernameInput   → Text input for username
-//    #passwordInput   → Text input for password (set type to Password in settings)
-//    #loginBtn        → Button to submit login
-//    #errorMsg        → Text element for error/status messages (hidden by default)
+//    #usernameDropdown → Dropdown for selecting username (replaces text input)
+//    #passwordInput    → Text input for password (set type to Password in settings)
+//    #loginBtn         → Button to submit login
+//    #errorMsg         → Text element for error/status messages (hidden by default)
 //
 //  On login success:
 //    admin → /dashboard
@@ -18,16 +18,15 @@
 //    "crams_display_name"  → human readable name for the dashboard header
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { validateLogin } from 'backend/login-verification.web.js';
+import { validateLogin, getLoginAccounts } from 'backend/login-verification.web.js';
 import { to } from 'wix-location';
 import { session as storage } from 'wix-storage';
-import { login } from 'wix-users';
 
-$w.onReady(function () {
-    const usernameInput = $w("#usernameInput");
-    const passwordInput = $w("#passwordInput");
-    const loginBtn      = $w("#loginBtn");
-    const errorMsg      = $w("#errorMsg");
+$w.onReady(async function () {
+    const usernameDropdown = $w("#usernameDropdown");
+    const passwordInput    = $w("#passwordInput");
+    const loginBtn         = $w("#loginBtn");
+    const errorMsg         = $w("#errorMsg");
 
     // If already logged in, skip the login page
     const existingHash = storage.getItem("crams_session_hash");
@@ -37,8 +36,20 @@ $w.onReady(function () {
         return;
     }
 
+    // Populate username dropdown from Accounts CMS
+    try {
+        const accounts = await getLoginAccounts();
+        usernameDropdown.options = accounts.map(a => ({
+            label: a.displayName,
+            value: a.username,
+        }));
+    } catch (err) {
+        console.error("Failed to load accounts:", err);
+        showError("Could not load accounts. Please refresh.");
+    }
+
     loginBtn.enable();
-    // Allow submitting with Enter key
+
     passwordInput.onKeyPress((event) => {
         if (event.key === "Enter") handleLogin();
     });
@@ -46,9 +57,9 @@ $w.onReady(function () {
     loginBtn.onClick(() => handleLogin());
 
     async function handleLogin() {
-        // Basic client-side validation
-        if (!usernameInput.value || !passwordInput.value) {
-            showError("Please enter your username and password.");
+        const username = usernameDropdown.value;
+        if (!username || !passwordInput.value) {
+            showError("Please select your account and enter your password.");
             return;
         }
 
@@ -56,15 +67,11 @@ $w.onReady(function () {
         errorMsg.hide();
 
         try {
-            const res = await validateLogin(
-                usernameInput.value.trim(),
-                passwordInput.value
-            );
+            const res = await validateLogin(username, passwordInput.value);
 
             if (res.body.success) {
-                // Store session
                 storage.setItem("crams_session_hash",  res.body.sessionHash);
-                storage.setItem("crams_username",      usernameInput.value.trim());
+                storage.setItem("crams_username",      username);
                 storage.setItem("crams_role",          res.body.role);
                 storage.setItem("crams_display_name",  res.body.displayName);
 
