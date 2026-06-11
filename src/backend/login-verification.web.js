@@ -30,11 +30,39 @@ import { response } from 'wix-http-functions';
 //  Add a row here for every user in the Accounts collection.
 // ─────────────────────────────────────────────────────────────────────────────
 const sessionHashMap = {
-    "PolarisUAE":    "AMS_k9Xv2mPqL7nRtZwYcJhD4sBf",
-    // Add sales users below as AMS provides them:
-    // "salesuser1": "AMS_<generate_unique_hash_here>",
-    // "salesuser2": "AMS_<generate_unique_hash_here>",
+    "PolarisUAE": "AMS_k9Xv2mPqL7nRtZwYcJhD4sBf",
+    "MarwanDev":  "AMS_83507e6d-9c14-4947-934f-116adc4b0072",
+    "Samsheer":   "AMS_Sm7kX2pQ9wNvLtRcYjHb4eAd",
+    "Cole":       "AMS_Co3fV8mK5nPxZwQjYeHt2rBs",
+    "Rifaz":      "AMS_Ri6hD4nM1kXwZqVcYpJt9eLb",
+    "Nasik":      "AMS_Na5jW7rP2mKxQcVtYeZb3hDf",
+    "Harsh":      "AMS_Ha8cN3kL6mPqXwZjYvRt5eDg",
+    "Hussain":    "AMS_Hu2wB9pL4kMnXqZcYtRj7eDf",
+    "Nadeem":     "AMS_Nd4vC6rK8mPxQwZjYbHt1eLs",
 };
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  getLoginAccounts
+//  Returns all account usernames + displayNames for the login page dropdown.
+//  No sensitive fields (password, role, etc.) are exposed.
+// ─────────────────────────────────────────────────────────────────────────────
+export const getLoginAccounts = webMethod(Permissions.Anyone, async function () {
+    try {
+        const { items } = await wixData
+            .query("Accounts")
+            .ascending("displayName")
+            .find({ suppressAuth: true });
+
+        return items.map(u => ({
+            username:    u.username,
+            displayName: u.displayName || u.username,
+        }));
+    } catch (err) {
+        console.error("getLoginAccounts error:", err);
+        return [];
+    }
+});
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +104,12 @@ export const validateLogin = webMethod(Permissions.Anyone, async function (usern
             });
         }
 
+        // Normalise role — CMS may store a string or an array
+        const rawRole = user.role;
+        const roles = Array.isArray(rawRole)
+            ? rawRole
+            : [rawRole || 'sales'];
+
         // Success
         return response({
             status: 200,
@@ -83,7 +117,7 @@ export const validateLogin = webMethod(Permissions.Anyone, async function (usern
             body: {
                 success:     true,
                 message:     "Login successful.",
-                role:        user.role        || "sales",
+                role:        JSON.stringify(roles),
                 displayName: user.displayName || username,
                 sessionHash: sessionHashMap[username],
             }
