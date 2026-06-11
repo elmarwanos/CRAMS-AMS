@@ -26,7 +26,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { verifyCookie } from 'backend/login-verification.web.js';
-import { updateLead } from 'backend/leads.web.js';
+import { updateLead, getSalesReps } from 'backend/leads.web.js';
 import { session as storage } from 'wix-storage';
 import { to } from 'wix-location';
 import wixData from 'wix-data';
@@ -48,6 +48,13 @@ let filterStartDate = null;
 let filterEndDate   = null;
 
 let editingItem = null; // CMS item currently open in the edit popup
+
+let myLeadsOnly            = false;
+let currentUserRoles       = [];
+let currentUserDisplayName = null;
+
+const isAdmin = () => currentUserRoles.includes('admin');
+const isSales = () => currentUserRoles.includes('sales');
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  EDIT POPUP — DROPDOWN OPTIONS
@@ -117,17 +124,8 @@ const OPT_MODEL = [
     { label: 'IMC-MID SIZE',     value: 'IMC-MID SIZE' },
 ];
 
-// Sales Exec
-const OPT_SALES_EXEC = [
-    { label: '—',                  value: '' },
-    { label: 'Samsheer (Dubai)',   value: 'Samsheer (Dubai)' },
-    { label: 'Cole (Dubai)',       value: 'Cole (Dubai)' },
-    { label: 'Rifaz (Dubai)',      value: 'Rifaz (Dubai)' },
-    { label: 'Nasik (Abu Dhabi)',  value: 'Nasik (Abu Dhabi)' },
-    { label: 'Harsh (Abu Dhabi)',  value: 'Harsh (Abu Dhabi)' },
-    { label: 'Hussain (Alain)',    value: 'Hussain (Alain)' },
-    { label: 'Nadeem (Alain)',     value: 'Nadeem (Alain)' },
-];
+// Sales Exec — populated dynamically from Accounts CMS (role === 'sales') on page load
+let OPT_SALES_EXEC = [{ label: '—', value: '' }];
 
 // Preferred Channel
 const OPT_CHANNEL = [
@@ -157,7 +155,7 @@ const OPT_YES_NO = [
 // ─────────────────────────────────────────────────────────────────────────────
 //  TABLE COLUMN DEFINITIONS
 // ─────────────────────────────────────────────────────────────────────────────
-const SIMPLE_COLUMNS = [
+let SIMPLE_COLUMNS = [
     { id: 'cid', dataPath: '_id',              label: '',              type: 'string', width: 0   },
     { id: 'c1',  dataPath: 'created',          label: 'Created',       type: 'string', width: 120 },
     { id: 'c2',  dataPath: 'source',           label: 'Source',        type: 'string', width: 100 },
@@ -171,7 +169,7 @@ const SIMPLE_COLUMNS = [
     { id: 'c10', dataPath: 'model',            label: 'Model',         type: 'string', width: 150 },
 ];
 
-const FULL_COLUMNS = [
+let FULL_COLUMNS = [
     { id: 'cid', dataPath: '_id',              label: '',              type: 'string', width: 0   },
     { id: 'c1',  dataPath: 'created',          label: 'Created',       type: 'string', width: 120 },
     { id: 'c2',  dataPath: 'source',           label: 'Source',        type: 'string', width: 100 },
@@ -223,36 +221,67 @@ $w.onReady(async function () {
         day: 'numeric', month: 'long', year: 'numeric'
     });
 
-    // 3. Default table view
+    // 3. Role-based setup — must run before columns are assigned to the table
+    const rawRole = storage.getItem('crams_role') || '["sales"]';
+    try { currentUserRoles = JSON.parse(rawRole); } catch { currentUserRoles = [rawRole]; }
+    if (!Array.isArray(currentUserRoles)) currentUserRoles = [currentUserRoles];
+    currentUserDisplayName = storage.getItem('crams_display_name') || username;
+
+    if (isSales()) {
+        const ownedCol = { id: 'co', dataPath: 'owned', label: '', type: 'string', width: 28 };
+        SIMPLE_COLUMNS = [SIMPLE_COLUMNS[0], ownedCol, ...SIMPLE_COLUMNS.slice(1)];
+        FULL_COLUMNS   = [FULL_COLUMNS[0],   ownedCol, ...FULL_COLUMNS.slice(1)];
+        myLeadsOnly = !isAdmin(); // admin+sales users default to all leads
+        $w('#text18').show();
+        $w('#myLeadsToggle').show();
+        $w('#myLeadsToggleTxt').show();
+        $w('#myLeadsToggleTxt').text = 'ASSIGNED';
+        $w('#myLeadsToggle').checked = false;
+    } else {
+        $w('#text18').hide();
+        $w('#myLeadsToggle').hide();
+        $w('#myLeadsToggleTxt').hide();
+    }
+
+    // 4. Default table view
     $w('#table1').columns = SIMPLE_COLUMNS;
     $w('#tableViewTxt').text = 'SIMPLE VIEW';
     $w('#tableViewSwitch').checked = false;
 
-    // 4. Sort default
+    // 5. Sort default
     $w('#sortDateDrop').value = 'Descending';
 
-    // 5. Load CMS data
+    // 6. Load CMS data
     await loadLeads();
 
-    // 6. Disable end date until start chosen
+    // 7. Disable end date until start chosen
     $w('#endDatePicker').disable();
 
-    // 7. Seed popup dropdown options (static — done once)
+    // 8. Load sales reps from Accounts CMS, then seed popup dropdowns
+    const repsResult = await getSalesReps(username, sessionHash);
+    if (repsResult.success && repsResult.reps.length) {
+        OPT_SALES_EXEC = [
+            { label: '—', value: '' },
+            ...repsResult.reps.map(name => ({ label: name, value: name }))
+        ];
+    }
     $w("#editPopupBox").hide();
     $w("#editPopupOverlay").hide();
     initEditPopupDropdowns();
 
-    // 8. Wire popup action buttons
+    // 9. Wire popup action buttons
     $w('#editSaveBtn').onClick(()   => saveEdit());
     $w('#editCancelBtn').onClick(() => closeEditPopup());
-    $w('#editPopupOverlay').onClick(() => closeEditPopup()); // click overlay to dismiss
+    $w('#editPopupOverlay').onClick(() => closeEditPopup());
 
-    // 9. Row click → open edit popup
+    // 10. Row click → open edit popup (sales users blocked from editing unassigned leads)
     $w('#table1').onRowSelect((event) => {
         const id = event.rowData && event.rowData._id;
         if (!id) return;
         const item = allItems.find(i => i._id === id);
-        if (item) openEditPopup(item);
+        if (!item) return;
+        if (isSales() && !isAdmin() && item.salesExec !== currentUserDisplayName) return;
+        openEditPopup(item);
     });
 });
 
@@ -312,6 +341,7 @@ function renderTable(items) {
         qty:              item.qty              || 0,
         amtWithVat:       item.amtWithVat       || 0,
         amtWithoutVat:    item.amtWithoutVat    || 0,
+        owned:            (isSales() && !myLeadsOnly && item.salesExec === currentUserDisplayName) ? '●' : '',
     }));
 }
 
@@ -337,6 +367,12 @@ $w('#tableViewSwitch').onClick(() => {
         $w('#tableViewTxt').text = 'SIMPLE VIEW';
     }
     renderTable(currentFiltered);
+});
+
+$w('#myLeadsToggle').onChange(() => {
+    myLeadsOnly = !$w('#myLeadsToggle').checked;
+    $w('#myLeadsToggleTxt').text = $w('#myLeadsToggle').checked ? 'ALL LEADS' : 'ASSIGNED';
+    applyFilters();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,6 +423,7 @@ function applyFilters() {
 
     if (filterStartDate) filtered = filtered.filter(i => i.created && i.created >= filterStartDate);
     if (filterEndDate)   filtered = filtered.filter(i => i.created && i.created <= filterEndDate + ' 23:59');
+    if (myLeadsOnly && isSales()) filtered = filtered.filter(i => i.salesExec === currentUserDisplayName);
 
     filtered = filtered.slice().sort((a, b) => {
         const valA = a.created || '';
