@@ -23,23 +23,8 @@ import { Permissions, webMethod } from 'wix-web-module';
 import wixData from 'wix-data';
 import { response } from 'wix-http-functions';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Session Hash Map
-//  Each username maps to a unique random string used as the session cookie.
-//  Generate new hashes at: https://www.uuidgenerator.net/
-//  Add a row here for every user in the Accounts collection.
-// ─────────────────────────────────────────────────────────────────────────────
-const sessionHashMap = {
-    "PolarisUAE": "AMS_k9Xv2mPqL7nRtZwYcJhD4sBf",
-    "MarwanDev":  "AMS_83507e6d-9c14-4947-934f-116adc4b0072",
-    "Samsheer":   "AMS_Sm7kX2pQ9wNvLtRcYjHb4eAd",
-    "Cole":       "AMS_Co3fV8mK5nPxZwQjYeHt2rBs",
-    "Rifaz":      "AMS_Ri6hD4nM1kXwZqVcYpJt9eLb",
-    "Nasik":      "AMS_Na5jW7rP2mKxQcVtYeZb3hDf",
-    "Harsh":      "AMS_Ha8cN3kL6mPqXwZjYvRt5eDg",
-    "Hussain":    "AMS_Hu2wB9pL4kMnXqZcYtRj7eDf",
-    "Nadeem":     "AMS_Nd4vC6rK8mPxQwZjYbHt1eLs",
-};
+// Session hashes are stored in the Accounts CMS (sessionHash field).
+// To add a new user: add a row to Accounts with a unique sessionHash — no code changes needed.
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,9 +80,8 @@ export const validateLogin = webMethod(Permissions.Anyone, async function (usern
             });
         }
 
-        // No hash defined for this user (code needs updating)
-        if (!sessionHashMap[username]) {
-            console.error(`No session hash defined for user: ${username}`);
+        if (!user.sessionHash) {
+            console.error(`No sessionHash in CMS for user: ${username}`);
             return response({
                 status: 500,
                 body: { success: false, message: "Login configuration error. Contact admin." }
@@ -119,7 +103,7 @@ export const validateLogin = webMethod(Permissions.Anyone, async function (usern
                 message:     "Login successful.",
                 role:        JSON.stringify(roles),
                 displayName: user.displayName || username,
-                sessionHash: sessionHashMap[username],
+                sessionHash: user.sessionHash,
             }
         });
 
@@ -138,10 +122,20 @@ export const validateLogin = webMethod(Permissions.Anyone, async function (usern
 //  Called on every protected page load to validate the session.
 //  Returns 200 if valid, 401 if not.
 // ─────────────────────────────────────────────────────────────────────────────
-export const verifyCookie = webMethod(Permissions.Anyone, function (username, sessionHash) {
-    if (sessionHashMap[username] && sessionHashMap[username] === sessionHash) {
-        return response({ status: 200 });
+export const verifyCookie = webMethod(Permissions.Anyone, async function (username, sessionHash) {
+    try {
+        const { items } = await wixData
+            .query("Accounts")
+            .eq("username", username)
+            .find({ suppressAuth: true });
+
+        if (items.length > 0 && items[0].sessionHash && items[0].sessionHash === sessionHash) {
+            return response({ status: 200 });
+        }
+        return response({ status: 401 });
+    } catch (err) {
+        console.error("verifyCookie error:", err);
+        return response({ status: 401 });
     }
-    return response({ status: 401 });
 });
 

@@ -4,9 +4,8 @@
 //
 //  Web methods for PolarisLeads CMS operations.
 //
-//  ⚠  sessionHashMap is duplicated from login-verification.web.js
-//     (Wix Velo does not allow .web.js files to import each other).
-//     Keep both in sync when adding users.
+//  Session verification queries the Accounts CMS (sessionHash field).
+//  To add a new user: add a row to Accounts with a unique sessionHash — no code changes needed.
 //
 //  SETUP REQUIRED:
 //    1. Set TRIGGERED_EMAIL_ID to the ID of your Wix Triggered Email template.
@@ -23,18 +22,14 @@ import { triggeredEmails } from 'wix-crm-backend';
 
 const TRIGGERED_EMAIL_ID = 'VM8dExZ';
 
-// ⚠  Keep in sync with login-verification.web.js
-const sessionHashMap = {
-    "PolarisUAE": "AMS_k9Xv2mPqL7nRtZwYcJhD4sBf",
-    "MarwanDev":  "AMS_83507e6d-9c14-4947-934f-116adc4b0072",
-    "Samsheer":   "AMS_Sm7kX2pQ9wNvLtRcYjHb4eAd",
-    "Cole":       "AMS_Co3fV8mK5nPxZwQjYeHt2rBs",
-    "Rifaz":      "AMS_Ri6hD4nM1kXwZqVcYpJt9eLb",
-    "Nasik":      "AMS_Na5jW7rP2mKxQcVtYeZb3hDf",
-    "Harsh":      "AMS_Ha8cN3kL6mPqXwZjYvRt5eDg",
-    "Hussain":    "AMS_Hu2wB9pL4kMnXqZcYtRj7eDf",
-    "Nadeem":     "AMS_Nd4vC6rK8mPxQwZjYbHt1eLs",
-};
+// Session hashes live in the Accounts CMS (sessionHash field) — no hardcoded map needed.
+async function verifySession(username, sessionHash) {
+    const { items } = await wixData
+        .query('Accounts')
+        .eq('username', username)
+        .find({ suppressAuth: true });
+    return items.length > 0 && !!items[0].sessionHash && items[0].sessionHash === sessionHash;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  getSalesReps
@@ -42,7 +37,7 @@ const sessionHashMap = {
 //  Used by the Dashboard to populate the Sales Exec assignment dropdown.
 // ─────────────────────────────────────────────────────────────────────────────
 export const getSalesReps = webMethod(Permissions.Anyone, async function (username, sessionHash) {
-    if (!sessionHashMap[username] || sessionHashMap[username] !== sessionHash) {
+    if (!await verifySession(username, sessionHash)) {
         return { success: false, reps: [] };
     }
 
@@ -71,7 +66,7 @@ export const getSalesReps = webMethod(Permissions.Anyone, async function (userna
 //  if the salesExec field changed to a new (non-empty) value.
 // ─────────────────────────────────────────────────────────────────────────────
 export const updateLead = webMethod(Permissions.Anyone, async function (username, sessionHash, item) {
-    if (!sessionHashMap[username] || sessionHashMap[username] !== sessionHash) {
+    if (!await verifySession(username, sessionHash)) {
         return { success: false, error: 'Unauthorized' };
     }
 
