@@ -170,6 +170,7 @@ export async function post_metaWebhook(request) {
 
                             const { leadgen_id, page_id, form_id, ad_id, ad_name: webhookAdName, created_time } = change.value;
                             console.log(`POST Meta Webhook: received leadgen_id: ${leadgen_id}`);
+                            console.log(`[CAMPAIGN] webhook payload — ad_id: "${ad_id}", ad_name (webhookAdName): "${webhookAdName}"`);
 
                             // 1. Fetch full lead details from Meta Graph API
                             const leadData = await fetchLeadFromMeta(leadgen_id, pageToken);
@@ -178,6 +179,16 @@ export async function post_metaWebhook(request) {
                                 continue;
                             }
                             console.log(`GET fetchLeadFromMeta: successfully fetched lead data ${JSON.stringify(leadData, null, 2)}`);
+                            console.log(`[CAMPAIGN] leadgen endpoint — ad_name: "${leadData.ad_name}", ad_id: "${leadData.ad_id}"`);
+
+                            // Backfill ad_name if the leadgen endpoint didn't return it
+                            if (!leadData.ad_name && (leadData.ad_id || ad_id)) {
+                                console.log(`[CAMPAIGN] ad_name missing from leadgen endpoint — fetching from ad_id: "${leadData.ad_id || ad_id}"`);
+                                leadData.ad_name = await fetchAdName(leadData.ad_id || ad_id, pageToken);
+                                console.log(`[CAMPAIGN] fetchAdName result: "${leadData.ad_name}"`);
+                            } else {
+                                console.log(`[CAMPAIGN] ad_name already present — skipping fetchAdName`);
+                            }
 
                             // 2. Check for duplicate (Meta occasionally sends the same event twice)
                             const isDuplicate = await checkDuplicate(leadgen_id);
@@ -203,7 +214,7 @@ export async function post_metaWebhook(request) {
 
                                 // From Meta form (required) ─────────────────
                                 source: detectSource(leadData),
-                                campaign: detectCampaign(leadData, webhookAdName),
+                                campaign: (() => { const c = detectCampaign(leadData, webhookAdName); console.log(`[CAMPAIGN] final resolved value: "${c}"`); return c; })(),
                                 created: createdStr,
                                 fullName: parsedFields['full_name'] || parsedFields['name'] || '',
                                 phone: parsedFields['phone_number'] || parsedFields['phone'] || '',
@@ -313,6 +324,31 @@ async function fetchLeadFromMeta(leadgenId, pageAccessToken) {
     } catch (err) {
         console.error('Network error fetching lead:', err);
         return null;
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  fetchAdName
+//
+//  Fetches the ad name from Meta Graph API using the ad_id.
+//  Used as a fallback when the leadgen endpoint doesn't return ad_name.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchAdName(adId, pageAccessToken) {
+    if (!adId) return '';
+    const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${adId}?fields=name&access_token=${pageAccessToken}`;
+    try {
+        const res  = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+        if (data.error) {
+            console.error('fetchAdName Graph API error:', data.error.message);
+            return '';
+        }
+        console.log(`fetchAdName: ad_id=${adId} -> name="${data.name}"`);
+        return data.name || '';
+    } catch (err) {
+        console.error('fetchAdName network error:', err);
+        return '';
     }
 }
 
