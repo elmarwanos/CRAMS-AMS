@@ -275,11 +275,22 @@ $w.onReady(async function () {
     $w('#editPopupOverlay').onClick(() => closeEditPopup());
 
     // 10. Row click → open edit popup (sales users blocked from editing unassigned leads)
-    $w('#table1').onRowSelect((event) => {
+    $w('#table1').onRowSelect(async (event) => {
         const id = event.rowData && event.rowData._id;
         if (!id) return;
-        const item = allItems.find(i => i._id === id);
-        if (!item) return;
+
+        let item = allItems.find(i => i._id === id);
+        if (!item) {
+            console.warn('[onRowSelect] item not found in allItems, fetching from CMS. id:', id);
+            try {
+                item = await wixData.get(COLLECTION, id, { suppressAuth: true });
+            } catch (e) {
+                console.error('[onRowSelect] CMS fallback failed:', e);
+                return;
+            }
+            if (!item) return;
+        }
+
         if (isSales() && !isAdmin() && item.salesExec !== currentUserDisplayName) return;
         openEditPopup(item);
     });
@@ -585,6 +596,7 @@ function setDropdown(elementId, rawValue) {
 //  EDIT POPUP — OPEN
 // ─────────────────────────────────────────────────────────────────────────────
 function openEditPopup(item) {
+    console.log('[openEditPopup] called. item._id:', item ? item._id : 'NULL');
     editingItem = item;
 
     $w('#editLeadName').text = `Editing: ${item.fullName || 'Unknown'}`;
@@ -632,10 +644,12 @@ function openEditPopup(item) {
 //  EDIT POPUP — CLOSE
 // ─────────────────────────────────────────────────────────────────────────────
 function closeEditPopup() {
+    console.log('[closeEditPopup] called. editingItem was:', editingItem ? editingItem._id : 'NULL');
+    try { throw new Error('closeEditPopup stack trace'); } catch(e) { console.log(e.stack); }
     $w('#editPopupBox').hide("slide", { direction: "right", duration: 600});
     $w('#editPopupOverlay').hide();
     editingItem = null;
-    $w('#editSaveBtn').enable(); // always re-enable so next open is ready
+    $w('#editSaveBtn').enable();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
