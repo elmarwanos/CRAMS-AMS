@@ -186,8 +186,10 @@ export async function post_metaWebhook(request) {
                                 console.log(`[CAMPAIGN] ad_name missing from leadgen endpoint — fetching from ad_id: "${leadData.ad_id || ad_id}"`);
                                 leadData.ad_name = await fetchAdName(leadData.ad_id || ad_id, pageToken);
                                 console.log(`[CAMPAIGN] fetchAdName result: "${leadData.ad_name}"`);
-                            } else {
+                            } else if (leadData.ad_name) {
                                 console.log(`[CAMPAIGN] ad_name already present — skipping fetchAdName`);
+                            } else {
+                                console.log(`[CAMPAIGN] no ad_id available — campaign will be empty (test lead or organic)`);
                             }
 
                             // 2. Check for duplicate (Meta occasionally sends the same event twice)
