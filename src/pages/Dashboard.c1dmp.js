@@ -819,7 +819,7 @@ function setupCharts(items) {
     setupDailyModelChart(items, modelColorMap);
     setupDailyBranchChart(items, branchColorMap);
     setupTotalSourceChart(items);
-    setupTotalModelChart(items, modelColorMap);
+    setupTotalModelChart(items);
     setupTotalStatusChart(items);
     setupPrefChannelChart(items);
     setupPrefTimeChart(items);
@@ -926,26 +926,23 @@ function setupTotalSourceChart(items) {
     $w('#totalSourceChart').setAttribute('data-chart', JSON.stringify(chartData));
 }
  
-// ─── CHART 5: Total Leads by Model ────────────────────────────────────────────────
-function setupTotalModelChart(items, colorMap) {
-    const modelMap = {};
+// ─── CHART 5: Lead Strength Ratio ────────────────────────────────────────────────
+function setupTotalModelChart(items) {
+    const ORDER   = ['Hot', 'Mild', 'Low'];
+    const COLORS  = { Hot: '#E53935', Mild: '#FFB300', Low: '#42A5F5' };
+
+    const counts = { Hot: 0, Mild: 0, Low: 0 };
     items.forEach(item => {
-        const model = item.model;
-        if (!model || model.trim() === '') return;
-        modelMap[model] = (modelMap[model] || 0) + 1;
+        const s = (item.strength || '').trim();
+        if (counts[s] !== undefined) counts[s]++;
     });
 
-    const sorted = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
-    const labels = sorted.map(e => e[0]);
-    const data   = sorted.map(e => e[1]);
+    const labels = ORDER.filter(s => counts[s] > 0);
+    const data   = labels.map(s => counts[s]);
 
     const chartData = {
         labels,
-        datasets: [{
-            data,
-            backgroundColor: labels.map(m => colorMap[m] || MODEL_PALETTE[0]),
-            borderWidth: 0,
-        }]
+        datasets: [{ data, backgroundColor: labels.map(s => COLORS[s]), borderWidth: 0 }]
     };
 
     // @ts-ignore

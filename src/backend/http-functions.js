@@ -448,10 +448,15 @@ function detectSource(leadData) {
     return 'Meta Lead Ad';
 }
 
+const FORM_ID_CAMPAIGN_MAP = {
+    '3440767666093191': 'Polaris 2026 June campaign',
+};
+
 function detectCampaign(leadData, webhookAdName) {
     // webhookAdName comes directly from the webhook payload (most reliable)
     // leadData.ad_name is from the Graph API fetch (sometimes missing)
-    return webhookAdName || leadData.ad_name || '';
+    // FORM_ID_CAMPAIGN_MAP is a fallback when ad_name isn't available
+    return webhookAdName || leadData.ad_name || FORM_ID_CAMPAIGN_MAP[leadData.form_id] || '';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
