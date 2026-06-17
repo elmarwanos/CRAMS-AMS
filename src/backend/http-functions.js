@@ -56,7 +56,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getSecret } from 'wix-secrets-backend';
-import { ok, serverError, badRequest } from 'wix-http-functions';
+import { ok, serverError, badRequest, forbidden } from 'wix-http-functions';
 import { fetch } from 'wix-fetch';
 import wixData from 'wix-data';
 
@@ -100,6 +100,75 @@ export async function get_metaWebhook(request) {
         console.error('GET Meta Webhook: Error during verification:', err);
         options.body = 'Internal error during verification';
         return serverError(options);
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GET /_functions/downloadCSV
+//
+//  Generates and serves the current filtered leads as a CSV file.
+//  Auth: username + sessionHash passed as query params.
+//  Filters: campaign, branch, model, source, startDate, endDate, myLeadsOnly, displayName
+// ─────────────────────────────────────────────────────────────────────────────
+export async function get_downloadCSV(request) {
+    const { username, sessionHash, campaign, branch, model, source, startDate, endDate, myLeadsOnly, displayName } = request.query;
+
+    // Verify session against Accounts CMS
+    try {
+        const { items: accounts } = await wixData.query('Accounts')
+            .eq('username', username)
+            .find({ suppressAuth: true });
+        if (!accounts.length || accounts[0].sessionHash !== sessionHash) {
+            return forbidden({ headers: { 'Content-Type': 'text/plain' }, body: 'Unauthorized' });
+        }
+    } catch (err) {
+        return serverError({ headers: { 'Content-Type': 'text/plain' }, body: 'Auth check failed' });
+    }
+
+    try {
+        const { items } = await wixData.query('PolarisLeads')
+            .descending('created')
+            .limit(1000)
+            .find({ suppressAuth: true });
+
+        // Apply same filters as client-side
+        let filtered = items;
+        if (campaign)  filtered = filtered.filter(i => i.campaign === campaign);
+        if (branch)    filtered = filtered.filter(i => i.branch   === branch);
+        if (model)     filtered = filtered.filter(i => i.model    === model);
+        if (source)    filtered = filtered.filter(i => i.source   === source);
+        if (startDate) filtered = filtered.filter(i => i.created && i.created >= startDate);
+        if (endDate)   filtered = filtered.filter(i => i.created && i.created <= endDate + ' 23:59');
+        if (myLeadsOnly === 'true' && displayName) filtered = filtered.filter(i => i.salesExec === displayName);
+
+        const q = (v) => `"${(v || '').toString().replace(/"/g, '""')}"`;
+        const header = 'created,source,campaign,salesExec,fullName,email,phone,preferredChannel,preferredTime,model,modelDetails,branch,strength,status,quotationIssued,remarks,followUp1,reply1,followUp2,reply2,followUp3,reply3,lostSaleReason,lostSaleRemarks,notes,month,day,qty,amtWithVat,amtWithoutVat\n';
+        const rows = filtered.map(i => [
+            q(i.created), q(i.source), q(i.campaign), q(i.salesExec),
+            q(i.fullName), q(i.email), q(i.phone), q(i.preferredChannel),
+            q(i.preferredTime), q(i.model), q(i.modelDetails), q(i.branch),
+            q(i.strength), q(i.status), q(i.quotationIssued), q(i.remarks),
+            q(i.followUp1), q(i.reply1), q(i.followUp2), q(i.reply2),
+            q(i.followUp3), q(i.reply3), q(i.lostSaleReason), q(i.lostSaleRemarks),
+            q(i.notes), q(i.month), q(i.day), q(i.qty),
+            q(i.amtWithVat), q(i.amtWithoutVat),
+        ].join(',') + '\n').join('');
+
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const fileName = `PolarisLeads-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+
+        return ok({
+            headers: {
+                'Content-Type': 'text/csv; charset=utf-8',
+                'Content-Disposition': `attachment; filename="${fileName}"`,
+            },
+            body: '﻿' + header + rows,
+        });
+    } catch (err) {
+        console.error('downloadCSV failed:', err);
+        return serverError({ headers: { 'Content-Type': 'text/plain' }, body: 'Download failed' });
     }
 }
 

@@ -28,7 +28,7 @@
 import { verifyCookie } from 'backend/login-verification.web.js';
 import { updateLead, getSalesReps } from 'backend/leads.web.js';
 import { session as storage } from 'wix-storage';
-import { to } from 'wix-location';
+import wixLocation, { to } from 'wix-location';
 import wixData from 'wix-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -390,27 +390,23 @@ $w('#myLeadsToggle').onChange(() => {
 //  CSV DOWNLOAD
 // ─────────────────────────────────────────────────────────────────────────────
 $w('#generateCSV').onClick(() => {
-    let csvContent = '\uFEFFcreated,source,campaign,salesExec,fullName,email,phone,preferredChannel,preferredTime,model,modelDetails,branch,strength,status,quotationIssued,remarks,followUp1,reply1,followUp2,reply2,followUp3,reply3,lostSaleReason,lostSaleRemarks,notes,month,day,qty,amtWithVat,amtWithoutVat\n';
+    const username    = storage.getItem('crams_username');
+    const sessionHash = storage.getItem('crams_session_hash');
 
-    const q = (v) => `"${(v || '').toString().replace(/"/g, '""')}"`;
-    currentFiltered.forEach(item => {
-        csvContent += [
-            q(item.created),    q(item.source),           q(item.campaign),    q(item.salesExec),
-            q(item.fullName),   q(item.email),            q(item.phone),       q(item.preferredChannel),
-            q(item.preferredTime), q(item.model),         q(item.modelDetails),q(item.branch),
-            q(item.strength),   q(item.status),           q(item.quotationIssued), q(item.remarks),
-            q(item.followUp1),  q(item.reply1),           q(item.followUp2),   q(item.reply2),
-            q(item.followUp3),  q(item.reply3),           q(item.lostSaleReason), q(item.lostSaleRemarks),
-            q(item.notes),      q(item.month),            q(item.day),         q(item.qty),
-            q(item.amtWithVat), q(item.amtWithoutVat),
-        ].join(',') + '\n';
-    });
+    const params = new URLSearchParams({ username, sessionHash });
+    if (filterCampaign)  params.set('campaign',    filterCampaign);
+    if (filterBranch)    params.set('branch',       filterBranch);
+    if (filterModel)     params.set('model',        filterModel);
+    if (filterSource)    params.set('source',       filterSource);
+    if (filterStartDate) params.set('startDate',    filterStartDate);
+    if (filterEndDate)   params.set('endDate',      filterEndDate);
+    if (myLeadsOnly && isSales()) {
+        params.set('myLeadsOnly',  'true');
+        params.set('displayName',  currentUserDisplayName);
+    }
 
-    const now = new Date();
-    const pad = (n) => n.toString().padStart(2, '0');
-    const fileName = `PolarisLeads-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
-
-    $w('#htmlDownloader').postMessage({ csvContent, fileName });
+    // wixLocation.to(`${wixLocation.baseUrl}/_functions/downloadCSV?${params.toString()}`);
+    wixLocation.to(`${wixLocation.baseUrl}/_functions-dev/downloadCSV?${params.toString()}`);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
