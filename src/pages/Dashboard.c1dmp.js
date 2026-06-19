@@ -48,6 +48,7 @@ let filterStartDate = null;
 let filterEndDate   = null;
 
 let editingItem = null; // CMS item currently open in the edit popup
+let suppressRowSelect = false; // true while renderTable is called from saveEdit to prevent re-open
 
 let myLeadsOnly            = false;
 let currentUserRoles       = [];
@@ -276,6 +277,7 @@ $w.onReady(async function () {
 
     // 10. Row click → open edit popup (sales users blocked from editing unassigned leads)
     $w('#table1').onRowSelect(async (event) => {
+        if (suppressRowSelect) return;
         const id = event.rowData && event.rowData._id;
         if (!id) return;
 
@@ -710,7 +712,9 @@ async function saveEdit() {
         console.log('[saveEdit] patching allItems at index:', idx);
         if (idx !== -1) allItems[idx] = result.item;
 
+        suppressRowSelect = true;
         applyFilters(); // re-render table + charts with updated data
+        setTimeout(() => { suppressRowSelect = false; }, 100);
 
         $w('#editSaveTxt').text = '✓ Saved';
         setTimeout(() => closeEditPopup(), 700);
