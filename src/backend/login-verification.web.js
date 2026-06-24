@@ -29,8 +29,8 @@ import { response } from 'wix-http-functions';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  getLoginAccounts
-//  Returns all account usernames + displayNames for the login page dropdown.
-//  No sensitive fields (password, role, etc.) are exposed.
+//  Returns all account usernames, displayNames, and roles for the login page dropdown.
+//  No sensitive fields (password, sessionHash, etc.) are exposed.
 // ─────────────────────────────────────────────────────────────────────────────
 export const getLoginAccounts = webMethod(Permissions.Anyone, async function () {
     try {
@@ -42,6 +42,15 @@ export const getLoginAccounts = webMethod(Permissions.Anyone, async function () 
         return items.map(u => ({
             username:    u.username,
             displayName: u.displayName || u.username,
+            role:        (() => {
+                const r = u.role;
+                if (Array.isArray(r)) return r;
+                if (typeof r === 'string' && r.trim().startsWith('[')) {
+                    try { return JSON.parse(r); } catch (e) {}
+                }
+                if (typeof r === 'string') return r.split(',').map(s => s.trim()).filter(Boolean);
+                return ['sales'];
+            })(),
         }));
     } catch (err) {
         console.error("getLoginAccounts error:", err);

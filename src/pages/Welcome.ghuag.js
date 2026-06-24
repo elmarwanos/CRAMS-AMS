@@ -36,13 +36,41 @@ $w.onReady(async function () {
         return;
     }
 
-    // Populate username dropdown from Accounts CMS
+    // Populate username dropdown from Accounts CMS, grouped by role
     try {
         const accounts = await getLoginAccounts();
-        usernameDropdown.options = accounts.map(a => ({
-            label: a.displayName,
-            value: a.username,
-        }));
+
+        const CATEGORY_ORDER = ['admin', 'sales', 'test', 'dev'];
+        const CATEGORY_LABELS = { admin: '— Admin —', sales: '— Sales —', test: '— Test —', dev: '— Dev —' };
+
+        const grouped = {};
+        for (const a of accounts) {
+            const roles = (Array.isArray(a.role) ? a.role : [a.role || 'sales']).map(r => r.toLowerCase());
+            // dev tag takes precedence for display grouping only
+            const bucket = roles.includes('dev') ? 'dev' : (roles[0] || 'sales');
+            if (!grouped[bucket]) grouped[bucket] = [];
+            grouped[bucket].push(a);
+        }
+
+        const options = [];
+        for (const cat of CATEGORY_ORDER) {
+            if (!grouped[cat] || grouped[cat].length === 0) continue;
+            options.push({ label: CATEGORY_LABELS[cat], value: '', disabled: true });
+            for (const a of grouped[cat]) {
+                options.push({ label: a.displayName, value: a.username });
+            }
+        }
+        // Append any roles not in CATEGORY_ORDER
+        for (const [role, members] of Object.entries(grouped)) {
+            if (CATEGORY_ORDER.includes(role)) continue;
+            const header = `— ${role.charAt(0).toUpperCase() + role.slice(1)} —`;
+            options.push({ label: header, value: '', disabled: true });
+            for (const a of members) {
+                options.push({ label: a.displayName, value: a.username });
+            }
+        }
+
+        usernameDropdown.options = options;
     } catch (err) {
         console.error("Failed to load accounts:", err);
         showError("Could not load accounts. Please refresh.");
