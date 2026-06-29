@@ -49,6 +49,7 @@ let filterEndDate   = null;
 
 let editingItem = null; // CMS item currently open in the edit popup
 let suppressRowSelect = false; // true while renderTable is called from saveEdit to prevent re-open
+let overlayClickEnabled = false; // guards against click bleed-through from row select
 
 let myLeadsOnly            = false;
 let currentUserRoles       = [];
@@ -273,7 +274,7 @@ $w.onReady(async function () {
     // 9. Wire popup action buttons
     $w('#editSaveBtn').onClick(()   => saveEdit());
     $w('#editCancelBtn').onClick(() => closeEditPopup());
-    $w('#editPopupOverlay').onClick(() => closeEditPopup());
+    $w('#editPopupOverlay').onClick(() => { if (overlayClickEnabled) closeEditPopup(); });
 
     // 10. Row click → open edit popup (sales users blocked from editing unassigned leads)
     $w('#table1').onRowSelect(async (event) => {
@@ -634,8 +635,10 @@ function openEditPopup(item) {
     setDropdown('#editPreferredTime',    item.preferredTime);
     setDropdown('#editQuotationIssued',  item.quotationIssued);
 
+    overlayClickEnabled = false;
     $w('#editPopupOverlay').show();
     $w('#editPopupBox').show("slide", { direction: "right", duration: 600});
+    setTimeout(() => { overlayClickEnabled = true; }, 400);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
